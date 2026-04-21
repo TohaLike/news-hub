@@ -57,24 +57,7 @@ function AppRoutes() {
     setComments([...comments, newComment]);
   };
 
-  const handleLogin = (email: string, _password: string) => {
-    const user: User = {
-      name: email.split('@')[0],
-      email,
-      avatar:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-    };
-    setCurrentUser(user);
-    setShowAuthModal(false);
-  };
-
-  const handleRegister = (name: string, email: string, _password: string) => {
-    const user: User = {
-      name,
-      email,
-      avatar:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-    };
+  const handleAuthenticated = (user: User) => {
     setCurrentUser(user);
     setShowAuthModal(false);
   };
@@ -138,8 +121,7 @@ function AppRoutes() {
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
-          onLogin={handleLogin}
-          onRegister={handleRegister}
+          onAuthenticated={handleAuthenticated}
         />
       )}
 
