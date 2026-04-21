@@ -1,3 +1,3 @@
 export { api } from './client';
 export * from './auth';
-export * from './tokenStorage';
+export { clearAccessToken, getAccessToken, setAccessToken } from './accessMemory';

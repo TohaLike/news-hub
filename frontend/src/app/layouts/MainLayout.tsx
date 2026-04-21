@@ -9,6 +9,8 @@ export interface MainLayoutProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   trendingViews: number;
+  /** Пока восстанавливаем сессию по токену — не показываем «Войти» */
+  authRestoring?: boolean;
   currentUser: User | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -20,6 +22,7 @@ export function MainLayout({
   searchQuery,
   onSearchChange,
   trendingViews,
+  authRestoring = false,
   currentUser,
   onOpenAuth,
   onLogout,
@@ -47,7 +50,13 @@ export function MainLayout({
                 </span>
               </div>
 
-              {currentUser ? (
+              {authRestoring ? (
+                <div
+                  className="h-9 w-28 animate-pulse rounded-lg bg-gray-200"
+                  aria-busy
+                  aria-label="Проверка входа"
+                />
+              ) : currentUser ? (
                 <UserMenu
                   user={currentUser}
                   onLogout={onLogout}

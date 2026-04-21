@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAccessToken } from './tokenStorage';
+import { getAccessToken } from './accessMemory';
 
 const baseURL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';

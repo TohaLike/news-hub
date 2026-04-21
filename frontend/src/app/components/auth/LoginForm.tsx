@@ -5,10 +5,10 @@ import { useForm } from 'react-hook-form';
 import { login, me } from '@/api';
 import { loginSchema, type LoginFormValues } from '../../schemas/auth';
 import type { User } from '../../types';
+import { userFromMe } from '../../lib/sessionUser';
 import { Button } from '../ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
-import { buildLetterAvatarDataUrl } from '../../lib/letterAvatar';
 import { getApiErrorMessage } from './getApiErrorMessage';
 
 export type { LoginFormValues } from '../../schemas/auth';
@@ -36,11 +36,7 @@ export function LoginForm({ onAuthenticated }: LoginFormProps) {
       await login(values.email, values.password);
       const profile = await me();
       const displayName = profile.email.split('@')[0] ?? profile.email;
-      onAuthenticated({
-        name: displayName,
-        email: profile.email,
-        avatar: buildLetterAvatarDataUrl(displayName, profile.email),
-      });
+      onAuthenticated(userFromMe(profile, displayName));
     } catch (e) {
       setRootError(getApiErrorMessage(e));
     }

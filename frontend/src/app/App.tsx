@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Redirect, Router, useLocation, useRoute } from 'wouter';
+import { clearAccessToken, logout, me, refreshSession } from '@/api';
 import { AuthModal } from './components/AuthModal';
 import { NewsDetail } from './components/NewsDetail';
 import { UserProfile } from './components/UserProfile';
+import { userFromMe } from './lib/sessionUser';
 import { MainLayout } from './layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
 import type { Comment, News, User } from './types';
@@ -14,6 +16,7 @@ function AppRoutes() {
   const routeParams = newsParams as { id: string } | undefined;
   const detailId = newsMatch && routeParams?.id ? routeParams.id : null;
 
+  const [authReady, setAuthReady] = useState(false);
   const [selectedPublisher, setSelectedPublisher] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [comments, setComments] = useState<Comment[]>(initialComments);
@@ -21,6 +24,26 @@ function AppRoutes() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await refreshSession();
+        const profile = await me();
+        if (!cancelled) setCurrentUser(userFromMe(profile));
+      } catch {
+        clearAccessToken();
+      } finally {
+        if (!cancelled) setAuthReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedNews = detailId
     ? (news.find((n) => String(n.id) === detailId) ?? null)
@@ -62,7 +85,12 @@ function AppRoutes() {
     setShowAuthModal(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // clearAccessToken вызывается внутри api
+    }
     setCurrentUser(null);
     setShowProfile(false);
   };
@@ -95,6 +123,7 @@ function AppRoutes() {
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       trendingViews={trendingViews}
+      authRestoring={!authReady}
       currentUser={currentUser}
       onOpenAuth={() => setShowAuthModal(true)}
       onLogout={handleLogout}

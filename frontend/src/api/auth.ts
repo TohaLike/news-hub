@@ -1,9 +1,8 @@
 import { api } from './client';
-import { clearTokens, getRefreshToken, setTokens } from './tokenStorage';
+import { clearAccessToken, setAccessToken } from './accessMemory';
 
-export type AuthTokens = {
+export type AuthAccess = {
   accessToken: string;
-  refreshToken: string;
 };
 
 export type MeResponse = {
@@ -14,51 +13,38 @@ export type MeResponse = {
 export async function register(
   email: string,
   password: string,
-): Promise<AuthTokens> {
-  const { data } = await api.post<AuthTokens>('/auth/register', {
+): Promise<AuthAccess> {
+  const { data } = await api.post<AuthAccess>('/auth/register', {
     email,
     password,
   });
-  setTokens(data.accessToken, data.refreshToken);
+  setAccessToken(data.accessToken);
   return data;
 }
 
-export async function login(email: string, password: string): Promise<AuthTokens> {
-  const { data } = await api.post<AuthTokens>('/auth/login', {
+export async function login(email: string, password: string): Promise<AuthAccess> {
+  const { data } = await api.post<AuthAccess>('/auth/login', {
     email,
     password,
   });
-  setTokens(data.accessToken, data.refreshToken);
+  setAccessToken(data.accessToken);
   return data;
 }
 
-/** Обновить пару токенов (ротация refresh на бэке). */
-export async function refreshSession(): Promise<AuthTokens> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new Error('No refresh token');
-  }
-  const { data } = await api.post<AuthTokens>('/auth/refresh', {
-    refreshToken,
-  });
-  setTokens(data.accessToken, data.refreshToken);
+/** Новый access; refresh в HttpOnly-cookie ротация на сервере. */
+export async function refreshSession(): Promise<AuthAccess> {
+  const { data } = await api.post<AuthAccess>('/auth/refresh');
+  setAccessToken(data.accessToken);
   return data;
 }
 
 export async function logout(): Promise<{ success: boolean }> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    clearTokens();
-    return { success: true };
-  }
   try {
-    const { data } = await api.post<{ success: boolean }>('/auth/logout', {
-      refreshToken,
-    });
-    clearTokens();
+    const { data } = await api.post<{ success: boolean }>('/auth/logout');
+    clearAccessToken();
     return data;
   } catch {
-    clearTokens();
+    clearAccessToken();
     throw new Error('Logout failed');
   }
 }
