@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, Redirect, Router, useLocation, useRoute } from 'wouter';
 import { Newspaper, TrendingUp, Search, LogIn } from 'lucide-react';
 import { NewsCard } from './components/NewsCard';
 import { PublisherFilter } from './components/PublisherFilter';
@@ -155,15 +156,23 @@ const initialComments: Comment[] = [
   },
 ];
 
-export default function App() {
+function AppRoutes() {
+  const [, setLocation] = useLocation();
+  const [newsMatch, newsParams] = useRoute('/news/:id');
+  const detailId = newsMatch && newsParams?.id ? newsParams.id : null;
+
   const [selectedPublisher, setSelectedPublisher] = useState<number | null>(null);
-  const [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [news] = useState<News[]>(initialNews);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+
+  const selectedNews = detailId
+    ? (news.find((n) => String(n.id) === detailId) ?? null)
+    : null;
+  const invalidNewsRoute = Boolean(newsMatch && detailId && !selectedNews);
 
   const filteredNews = news.filter((item) => {
     const matchesPublisher = selectedPublisher === null || item.publisher.id === selectedPublisher;
@@ -233,9 +242,13 @@ export default function App() {
         }))
     : [];
 
-  const newsComments = selectedNews 
-    ? comments.filter(c => c.newsId === selectedNews.id)
+  const newsComments = selectedNews
+    ? comments.filter((c) => c.newsId === selectedNews.id)
     : [];
+
+  if (invalidNewsRoute) {
+    return <Redirect to="/" />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -243,7 +256,7 @@ export default function App() {
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 text-left no-underline text-inherit">
               <div className="bg-blue-600 p-2 rounded-lg">
                 <Newspaper className="text-white" size={28} />
               </div>
@@ -251,7 +264,7 @@ export default function App() {
                 <h1 className="text-2xl text-gray-900">НовостиHub</h1>
                 <p className="text-sm text-gray-600">Новости из проверенных источников</p>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-blue-600">
                 <TrendingUp size={20} />
@@ -301,7 +314,7 @@ export default function App() {
               <NewsCard
                 key={item.id}
                 {...item}
-                onClick={() => setSelectedNews(item)}
+                onClick={() => setLocation(`/news/${item.id}`)}
               />
             ))}
           </div>
@@ -317,7 +330,7 @@ export default function App() {
         <NewsDetail
           news={selectedNews}
           comments={newsComments}
-          onClose={() => setSelectedNews(null)}
+          onClose={() => setLocation('/')}
           onAddComment={handleAddComment}
           currentUser={currentUser}
         />
@@ -342,5 +355,13 @@ export default function App() {
         />
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppRoutes />
+    </Router>
   );
 }
