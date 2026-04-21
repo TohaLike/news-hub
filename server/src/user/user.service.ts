@@ -1,36 +1,45 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserDocument } from './schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {}
 
-  public async create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  async create(data: {
+    email: string;
+    password: string;
+  }): Promise<UserDocument> {
+    const user = new this.userModel(data);
+    return user.save();
   }
 
-  public async findAll() {
-    return `This action returns all user`;
+  async findByEmail(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email }).exec();
   }
 
-  public async findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findById(id: string): Promise<UserDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    return this.userModel.findById(id).exec();
   }
 
-  public async update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async addRefreshToken(
+    userId: Types.ObjectId | string,
+    token: string,
+  ): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(userId, { $push: { refreshTokens: token } })
+      .exec();
   }
 
-  public async findByEmail(email: string): Promise<UserDocument | null> {
-    // Здесь должна быть логика поиска пользователя по email в базе данных
-    return null; // Вернуть найденного пользователя или null, если не найден
-  }
-
-  public async remove(id: number) {
-    return `This action removes a #${id} user`;
+  async removeRefreshToken(userId: string, token: string): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(userId, { $pull: { refreshTokens: token } })
+      .exec();
   }
 }

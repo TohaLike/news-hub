@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  
+
   const corsOrigin = configService.get<string>('CORS_ORIGIN')?.split(',');
 
   app.useGlobalPipes(
@@ -27,4 +27,4 @@ async function bootstrap() {
 
   await app.listen(configService.getOrThrow<string>('PORT') ?? 3000);
 }
-bootstrap();
+void bootstrap();
