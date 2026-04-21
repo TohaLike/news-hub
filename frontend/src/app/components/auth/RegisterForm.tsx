@@ -8,7 +8,7 @@ import type { User } from '../../types';
 import { Button } from '../ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
-import { DEFAULT_AVATAR } from './constants';
+import { buildLetterAvatarDataUrl } from '../../lib/letterAvatar';
 import { getApiErrorMessage } from './getApiErrorMessage';
 
 export type { RegisterFormValues } from '../../schemas/auth';
@@ -37,9 +37,9 @@ export function RegisterForm({ onAuthenticated }: RegisterFormProps) {
       await registerAccount(values.email, values.password);
       const profile = await me();
       onAuthenticated({
-        name: values.name,
+        name: values.name.trim(),
         email: profile.email,
-        avatar: DEFAULT_AVATAR,
+        avatar: buildLetterAvatarDataUrl(values.name.trim(), profile.email),
       });
     } catch (e) {
       setRootError(getApiErrorMessage(e));

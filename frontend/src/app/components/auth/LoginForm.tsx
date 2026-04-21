@@ -8,7 +8,7 @@ import type { User } from '../../types';
 import { Button } from '../ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
-import { DEFAULT_AVATAR } from './constants';
+import { buildLetterAvatarDataUrl } from '../../lib/letterAvatar';
 import { getApiErrorMessage } from './getApiErrorMessage';
 
 export type { LoginFormValues } from '../../schemas/auth';
@@ -35,10 +35,11 @@ export function LoginForm({ onAuthenticated }: LoginFormProps) {
     try {
       await login(values.email, values.password);
       const profile = await me();
+      const displayName = profile.email.split('@')[0] ?? profile.email;
       onAuthenticated({
-        name: profile.email.split('@')[0] ?? profile.email,
+        name: displayName,
         email: profile.email,
-        avatar: DEFAULT_AVATAR,
+        avatar: buildLetterAvatarDataUrl(displayName, profile.email),
       });
     } catch (e) {
       setRootError(getApiErrorMessage(e));
