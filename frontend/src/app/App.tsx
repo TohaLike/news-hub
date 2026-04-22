@@ -17,6 +17,7 @@ import {
   refreshSession,
   togglePublicationCommentLike,
   togglePublicationLike,
+  recordPublicationView,
 } from '@/api';
 import type { ProfileComment } from '@/api/comments';
 import { getApiErrorMessage } from './components/auth/getApiErrorMessage';
@@ -24,6 +25,7 @@ import { AuthModal } from './components/AuthModal';
 import { NewsDetail } from './components/NewsDetail';
 import { UserProfile } from './components/UserProfile';
 import { userFromMe } from './lib/sessionUser';
+import { getOrCreateViewerKey } from './lib/viewerKey';
 import { MainLayout } from './layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
 import type { NewsRubric } from './constants/rubrics';
@@ -160,6 +162,34 @@ function AppRoutes() {
       cancelled = true;
     };
   }, [selectedNews?.id]);
+
+  useEffect(() => {
+    if (!selectedNews) return;
+    let cancelled = false;
+    const body =
+      currentUser != null
+        ? {}
+        : (() => {
+            const viewerKey = getOrCreateViewerKey();
+            return viewerKey ? { viewerKey } : {};
+          })();
+    if (!currentUser && !('viewerKey' in body)) {
+      return;
+    }
+    void recordPublicationView(selectedNews.id, body)
+      .then((res) => {
+        if (cancelled) return;
+        setNews((prev) =>
+          prev.map((n) =>
+            String(n.id) === String(selectedNews.id) ? { ...n, views: res.views } : n,
+          ),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNews?.id, currentUser?.id]);
 
   useEffect(() => {
     if (!showProfile) {

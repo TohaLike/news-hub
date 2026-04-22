@@ -19,6 +19,10 @@ import {
   PublicationComment,
   PublicationCommentDocument,
 } from './schemas/publication-comment.schema';
+import {
+  GroupPublicationView,
+  GroupPublicationViewDocument,
+} from './schemas/group-publication-view.schema';
 import { User } from 'src/user/schemas/user.schema';
 
 const DEFAULT_POST_IMAGE =
@@ -33,6 +37,8 @@ export class EditorialService {
     private readonly pubModel: Model<GroupPublicationDocument>,
     @InjectModel(PublicationComment.name)
     private readonly commentModel: Model<PublicationCommentDocument>,
+    @InjectModel(GroupPublicationView.name)
+    private readonly pubViewModel: Model<GroupPublicationViewDocument>,
   ) {}
 
   private assertObjectId(id: string, label: string): Types.ObjectId {
@@ -517,5 +523,57 @@ export class EditorialService {
         newsTitle,
       };
     });
+  }
+
+  /**
+   * Учитывает один просмотр на одного зрителя (авторизованный — по userId, гость — по viewerKey uuid).
+   */
+  async recordPublicationView(
+    publicationId: string,
+    opts: { userId?: string; anonKey?: string },
+  ): Promise<{ views: number; newView: boolean }> {
+    const pubDoc = await this.ensurePublicationExists(publicationId);
+    const pid = pubDoc._id as Types.ObjectId;
+
+    let viewerIdentity: string;
+    if (opts.userId && Types.ObjectId.isValid(opts.userId)) {
+      viewerIdentity = `u:${opts.userId}`;
+    } else if (opts.anonKey && this.isUuidV4(opts.anonKey)) {
+      viewerIdentity = `a:${opts.anonKey.toLowerCase()}`;
+    } else {
+      throw new BadRequestException(
+        'Укажите viewerKey (UUID v4) для гостя или авторизуйтесь',
+      );
+    }
+
+    let inserted = false;
+    try {
+      await this.pubViewModel.create({
+        publicationId: pid,
+        viewerIdentity,
+      });
+      inserted = true;
+    } catch (e: unknown) {
+      const code = (e as { code?: number })?.code;
+      if (code === 11000) {
+        inserted = false;
+      } else {
+        throw e;
+      }
+    }
+
+    if (inserted) {
+      await this.pubModel.updateOne({ _id: pid }, { $inc: { views: 1 } }).exec();
+    }
+
+    const fresh = await this.pubModel.findById(pid).select('views').lean().exec();
+    const views = typeof fresh?.views === 'number' ? fresh.views : 0;
+    return { views, newView: inserted };
+  }
+
+  private isUuidV4(s: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      s.trim(),
+    );
   }
 }

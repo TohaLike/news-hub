@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Req,
@@ -14,6 +15,7 @@ import {
   type JwtRequestUser,
 } from 'src/auth/guard/optional-jwt-auth.guard';
 import { CreatePublicationCommentDto } from './dto/create-publication-comment.dto';
+import { RecordPublicationViewDto } from './dto/record-publication-view.dto';
 import { EditorialService } from './editorial.service';
 
 type ReqWithUser = Request & { user?: JwtRequestUser };
@@ -26,6 +28,20 @@ export class FeedController {
   @UseGuards(OptionalJwtAuthGuard)
   listPosts(@Req() req: ReqWithUser) {
     return this.editorialService.listPublicFeed(100, req.user?.userId);
+  }
+
+  @Post('posts/:publicationId/view')
+  @HttpCode(200)
+  @UseGuards(OptionalJwtAuthGuard)
+  recordPublicationView(
+    @Param('publicationId') publicationId: string,
+    @Body() dto: RecordPublicationViewDto,
+    @Req() req: ReqWithUser,
+  ) {
+    return this.editorialService.recordPublicationView(publicationId, {
+      userId: req.user?.userId,
+      anonKey: dto.viewerKey,
+    });
   }
 
   @Post('posts/:publicationId/like')

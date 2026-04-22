@@ -58,3 +58,15 @@ export async function togglePublicationLike(
   );
   return data;
 }
+
+/** Один уникальный просмотр на пользователя или на ключ гостя в этом браузере. */
+export async function recordPublicationView(
+  publicationId: string,
+  body: { viewerKey?: string },
+): Promise<{ views: number; newView: boolean }> {
+  const { data } = await api.post<{ views: number; newView: boolean }>(
+    `/feed/posts/${encodeURIComponent(publicationId)}/view`,
+    body,
+  );
+  return data;
+}

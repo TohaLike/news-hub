@@ -17,6 +17,10 @@ import {
   PublicationComment,
   PublicationCommentSchema,
 } from './schemas/publication-comment.schema';
+import {
+  GroupPublicationView,
+  GroupPublicationViewSchema,
+} from './schemas/group-publication-view.schema';
 
 @Module({
   imports: [
@@ -26,6 +30,7 @@ import {
       { name: EditorialGroup.name, schema: EditorialGroupSchema },
       { name: GroupPublication.name, schema: GroupPublicationSchema },
       { name: PublicationComment.name, schema: PublicationCommentSchema },
+      { name: GroupPublicationView.name, schema: GroupPublicationViewSchema },
     ]),
   ],
   controllers: [EditorialController, FeedController],
