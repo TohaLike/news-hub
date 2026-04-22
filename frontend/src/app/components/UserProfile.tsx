@@ -3,13 +3,15 @@ import {
   Camera,
   Edit2,
   Eye,
+  Layers,
   MessageCircle,
   Newspaper,
   Save,
   X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { AccountRole } from '../types';
+import type { AccountRole, EditorialGroup, GroupPublication, Publisher } from '../types';
+import { PublisherEditorialPanel } from './PublisherEditorialPanel';
 import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
@@ -24,7 +26,7 @@ interface Comment {
 
 /** Демо-публикации издателя (данные с ленты, только UI). */
 export interface PublisherActivityPost {
-  id: number;
+  id: number | string;
   title: string;
   excerpt: string;
   image: string;
@@ -43,6 +45,15 @@ interface UserProfileProps {
   comments: Comment[];
   /** Для роли издателя — карточки «мои публикации» (передаётся из App из `news`). */
   publisherPosts?: PublisherActivityPost[];
+  /** Только для издателя: каталог издательств, группы и публикации в группах. */
+  publishersCatalog?: Publisher[];
+  editorialGroups?: EditorialGroup[];
+  groupPublications?: GroupPublication[];
+  onCreateEditorialGroup?: (payload: { name: string; publisherId: number }) => void;
+  onCreateGroupPublication?: (
+    groupId: string,
+    payload: Omit<GroupPublication, 'id' | 'groupId' | 'publishedAt' | 'views' | 'comments'>,
+  ) => void;
   onClose: () => void;
   onUpdateProfile: (name: string, email: string, avatar: string) => void;
 }
@@ -51,6 +62,11 @@ export function UserProfile({
   user,
   comments,
   publisherPosts = [],
+  publishersCatalog,
+  editorialGroups,
+  groupPublications,
+  onCreateEditorialGroup,
+  onCreateGroupPublication,
   onClose,
   onUpdateProfile,
 }: UserProfileProps) {
@@ -60,7 +76,7 @@ export function UserProfile({
     email: user.email,
     avatar: user.avatar,
   });
-  const [activeTab, setActiveTab] = useState<'info' | 'activity'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'activity' | 'editorial'>('info');
   const [activityPanel, setActivityPanel] = useState<'posts' | 'comments'>('posts');
 
   const handleSave = () => {
@@ -164,7 +180,12 @@ export function UserProfile({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
       <div className="min-h-screen px-4 py-8">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl">
+        <div
+          className={cn(
+            'mx-auto rounded-lg bg-white shadow-xl',
+            user.role === 'publisher' ? 'max-w-5xl' : 'max-w-4xl',
+          )}
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-2xl">Профиль пользователя</h2>
@@ -177,27 +198,53 @@ export function UserProfile({
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b">
+          <div className="flex flex-wrap border-b">
             <button
+              type="button"
               onClick={() => setActiveTab('info')}
-              className={`flex-1 px-6 py-3 text-sm transition-colors ${
+              className={cn(
+                'min-w-[33%] flex-1 px-4 py-3 text-sm transition-colors sm:px-6',
                 activeTab === 'info'
                   ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+                  : 'text-gray-600 hover:text-gray-900',
+              )}
             >
               Информация
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('activity')}
-              className={`flex-1 px-6 py-3 text-sm transition-colors ${
+              className={cn(
+                'min-w-[33%] flex-1 px-4 py-3 text-sm transition-colors sm:px-6',
                 activeTab === 'activity'
                   ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+                  : 'text-gray-600 hover:text-gray-900',
+              )}
             >
               Активность
             </button>
+            {user.role === 'publisher' &&
+            publishersCatalog &&
+            editorialGroups !== undefined &&
+            groupPublications !== undefined &&
+            onCreateEditorialGroup &&
+            onCreateGroupPublication ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('editorial')}
+                className={cn(
+                  'min-w-[33%] flex-1 px-4 py-3 text-sm transition-colors sm:px-6',
+                  activeTab === 'editorial'
+                    ? 'border-b-2 border-violet-600 text-violet-700'
+                    : 'text-gray-600 hover:text-gray-900',
+                )}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Layers className="size-4 shrink-0 opacity-80" aria-hidden />
+                  Редакция
+                </span>
+              </button>
+            ) : null}
           </div>
 
           {/* Content */}
@@ -369,6 +416,20 @@ export function UserProfile({
                   </div>
                 </div>
               </div>
+            ) : activeTab === 'editorial' &&
+              user.role === 'publisher' &&
+              publishersCatalog &&
+              editorialGroups !== undefined &&
+              groupPublications !== undefined &&
+              onCreateEditorialGroup &&
+              onCreateGroupPublication ? (
+              <PublisherEditorialPanel
+                publishers={publishersCatalog}
+                groups={editorialGroups}
+                publications={groupPublications}
+                onCreateGroup={onCreateEditorialGroup}
+                onCreatePublication={onCreateGroupPublication}
+              />
             ) : user.role === 'publisher' ? (
               <div>
                 <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">

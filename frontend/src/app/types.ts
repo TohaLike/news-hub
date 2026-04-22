@@ -37,6 +37,29 @@ export interface User {
   role: AccountRole;
 }
 
+/** Тематическая группа / рубрика внутри издательства; публикации создаются только внутри группы. */
+export interface EditorialGroup {
+  id: string;
+  name: string;
+  /** Связь с издательством из каталога (`publishers`). */
+  publisherId: number;
+  createdAt: string;
+}
+
+/** Материал, созданный издателем внутри группы (пока только фронт). */
+export interface GroupPublication {
+  id: string;
+  groupId: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  image: string;
+  publishedAt: string;
+  views: number;
+  comments: number;
+}
+
 export const publishers: Publisher[] = [
   {
     id: 1,

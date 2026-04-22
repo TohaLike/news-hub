@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Redirect, Router, useLocation, useRoute } from 'wouter';
 import { clearAccessToken, logout, me, refreshSession } from '@/api';
 import { AuthModal } from './components/AuthModal';
@@ -7,7 +7,7 @@ import { UserProfile } from './components/UserProfile';
 import { userFromMe } from './lib/sessionUser';
 import { MainLayout } from './layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
-import type { Comment, News, User } from './types';
+import type { Comment, EditorialGroup, GroupPublication, News, User } from './types';
 import { initialComments, initialNews, publishers } from './types';
 
 function AppRoutes() {
@@ -24,6 +24,8 @@ function AppRoutes() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [editorialGroups, setEditorialGroups] = useState<EditorialGroup[]>([]);
+  const [groupPublications, setGroupPublications] = useState<GroupPublication[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +103,62 @@ function AppRoutes() {
     }
   };
 
+  const handleCreateEditorialGroup = (payload: { name: string; publisherId: number }) => {
+    setEditorialGroups((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: payload.name,
+        publisherId: payload.publisherId,
+        createdAt: new Date().toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+      },
+    ]);
+  };
+
+  const handleCreateGroupPublication = (
+    groupId: string,
+    payload: Omit<GroupPublication, 'id' | 'groupId' | 'publishedAt' | 'views' | 'comments'>,
+  ) => {
+    setGroupPublications((prev) => [
+      ...prev,
+      {
+        ...payload,
+        id: crypto.randomUUID(),
+        groupId,
+        publishedAt: 'Только что',
+        views: 0,
+        comments: 0,
+      },
+    ]);
+  };
+
+  const publisherActivityPosts = useMemo(() => {
+    if (currentUser?.role !== 'publisher') return [];
+    const fromEditorial = groupPublications.map((p) => ({
+      id: p.id,
+      title: p.title,
+      excerpt: p.excerpt,
+      image: p.image,
+      views: p.views,
+      comments: p.comments,
+      publishedAt: p.publishedAt,
+    }));
+    const fromDemo = news.map((n) => ({
+      id: n.id,
+      title: n.title,
+      excerpt: n.excerpt,
+      image: n.image,
+      views: n.views,
+      comments: n.comments,
+      publishedAt: n.publishedAt,
+    }));
+    return [...fromEditorial, ...fromDemo];
+  }, [currentUser?.role, groupPublications, news]);
+
   const userComments = currentUser
     ? comments
         .filter((c) => c.author === currentUser.name)
@@ -158,18 +216,21 @@ function AppRoutes() {
         <UserProfile
           user={currentUser}
           comments={userComments}
-          publisherPosts={
-            currentUser.role === 'publisher'
-              ? news.map((n) => ({
-                  id: n.id,
-                  title: n.title,
-                  excerpt: n.excerpt,
-                  image: n.image,
-                  views: n.views,
-                  comments: n.comments,
-                  publishedAt: n.publishedAt,
-                }))
-              : []
+          publisherPosts={publisherActivityPosts}
+          publishersCatalog={
+            currentUser.role === 'publisher' ? publishers : undefined
+          }
+          editorialGroups={
+            currentUser.role === 'publisher' ? editorialGroups : undefined
+          }
+          groupPublications={
+            currentUser.role === 'publisher' ? groupPublications : undefined
+          }
+          onCreateEditorialGroup={
+            currentUser.role === 'publisher' ? handleCreateEditorialGroup : undefined
+          }
+          onCreateGroupPublication={
+            currentUser.role === 'publisher' ? handleCreateGroupPublication : undefined
           }
           onClose={() => setShowProfile(false)}
           onUpdateProfile={handleUpdateProfile}
