@@ -1,5 +1,6 @@
 import { MessageCircle, Eye, Clock, ThumbsUp } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { cn } from './ui/utils';
 
 interface NewsCardProps {
   id: string;
@@ -13,6 +14,8 @@ interface NewsCardProps {
   category: string;
   views: number;
   likes: number;
+  /** С бэка: вы уже лайкнули этот материал */
+  likedByMe?: boolean;
   comments: number;
   publishedAt: string;
   onClick: () => void;
@@ -26,6 +29,7 @@ export function NewsCard({
   category,
   views,
   likes,
+  likedByMe,
   comments,
   publishedAt,
   onClick,
@@ -93,8 +97,22 @@ export function NewsCard({
               <Eye className="size-3.5 shrink-0 text-gray-400 sm:size-4" aria-hidden />
               <span>{views.toLocaleString('ru-RU')}</span>
             </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums text-gray-600">
-              <ThumbsUp className="size-3.5 shrink-0 text-gray-400 sm:size-4" aria-hidden />
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 tabular-nums transition-colors',
+                likedByMe
+                  ? 'border border-blue-300/80 bg-blue-50/90 font-medium text-blue-800 shadow-none'
+                  : 'text-gray-600',
+              )}
+              title={likedByMe ? 'Вы лайкнули этот материал' : undefined}
+            >
+              <ThumbsUp
+                className={cn(
+                  'size-3.5 shrink-0 sm:size-4',
+                  likedByMe ? 'text-blue-600' : 'text-gray-400',
+                )}
+                aria-hidden
+              />
               <span>{likes.toLocaleString('ru-RU')}</span>
             </span>
           </div>

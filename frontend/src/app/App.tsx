@@ -108,7 +108,9 @@ function AppRoutes() {
     };
   }, []);
 
+  /** Лента после `authReady`, чтобы в запрос ушёл JWT и пришёл корректный `likedByMe`. */
   useEffect(() => {
+    if (!authReady) return;
     let cancelled = false;
     (async () => {
       try {
@@ -124,7 +126,7 @@ function AppRoutes() {
     return () => {
       cancelled = true;
     };
-  }, [loadFeed]);
+  }, [authReady, loadFeed]);
 
   useEffect(() => {
     if (!showProfile || currentUser?.role !== 'publisher') {
@@ -272,6 +274,11 @@ function AppRoutes() {
   const handleAuthenticated = (user: User) => {
     setCurrentUser(user);
     setShowAuthModal(false);
+    void listFeedPosts()
+      .then(setNews)
+      .catch(() => {
+        // лента обновится при следующей загрузке
+      });
   };
 
   const handleLogout = async () => {
@@ -287,6 +294,9 @@ function AppRoutes() {
     setEditorialError(null);
     setProfileComments(null);
     setDetailComments([]);
+    void listFeedPosts()
+      .then(setNews)
+      .catch(() => {});
   };
 
   const handleUpdateProfile = (name: string, email: string, avatar: string) => {

@@ -165,19 +165,25 @@ export function NewsDetail({
                   <button
                     type="button"
                     disabled={postLikeBusy}
+                    aria-pressed={Boolean(news.likedByMe)}
+                    title={news.likedByMe ? 'Вы лайкнули этот материал' : 'Лайкнуть'}
                     onClick={(e) => {
                       e.stopPropagation();
                       void handlePostLike();
                     }}
                     className={cn(
-                      'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 tabular-nums transition-colors',
+                      'inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 tabular-nums transition-colors',
                       news.likedByMe
-                        ? 'bg-blue-100 font-medium text-blue-800 hover:bg-blue-200'
+                        ? 'border border-blue-300/80 bg-blue-50/90 font-medium text-blue-800 hover:border-blue-400 hover:bg-blue-50'
                         : 'hover:bg-gray-100 hover:text-blue-700',
                       postLikeBusy && 'opacity-60',
                     )}
                   >
-                    <ThumbsUp size={14} aria-hidden />
+                    <ThumbsUp
+                      size={14}
+                      className={news.likedByMe ? 'text-blue-600' : undefined}
+                      aria-hidden
+                    />
                     {news.likes}
                   </button>
                 </div>
