@@ -17,7 +17,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface Comment {
   id: number;
-  newsId: number;
+  newsId: string;
   newsTitle: string;
   text: string;
   timestamp: string;

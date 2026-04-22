@@ -13,7 +13,7 @@ interface Comment {
 
 interface NewsDetailProps {
   news: {
-    id: number;
+    id: string;
     title: string;
     content: string;
     image: string;
@@ -24,10 +24,11 @@ interface NewsDetailProps {
     category: string;
     views: number;
     publishedAt: string;
+    groupName?: string;
   };
   comments: Comment[];
   onClose: () => void;
-  onAddComment: (newsId: number, text: string) => void;
+  onAddComment: (newsId: string, text: string) => void;
   currentUser?: {
     name: string;
     avatar: string;
@@ -40,7 +41,7 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newComment.trim()) {
-      onAddComment(news.id, newComment);
+      onAddComment(String(news.id), newComment);
       setNewComment('');
     }
   };
@@ -82,10 +83,15 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
           {/* Content */}
           <div className="p-6">
             <div className="mb-4">
-              <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-full text-sm mb-4">
-                {news.category}
-              </span>
-              <h1 className="text-3xl mb-4">{news.title}</h1>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
+                  {news.category}
+                </span>
+                {news.groupName ? (
+                  <span className="text-sm text-gray-500">Группа: {news.groupName}</span>
+                ) : null}
+              </div>
+              <h1 className="mb-4 text-3xl">{news.title}</h1>
             </div>
 
             <ImageWithFallback 

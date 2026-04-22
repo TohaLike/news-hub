@@ -1,9 +1,12 @@
+import { formatDistanceToNow } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Redirect, Router, useLocation, useRoute } from 'wouter';
 import {
   clearAccessToken,
   createGroupPublication,
   createPublisherGroup,
+  listFeedPosts,
   listGroupPublications,
   listPublisherGroups,
   logout,
@@ -17,8 +20,15 @@ import { UserProfile } from './components/UserProfile';
 import { userFromMe } from './lib/sessionUser';
 import { MainLayout } from './layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
-import type { Comment, EditorialGroup, GroupPublication, News, User } from './types';
-import { initialComments, initialNews, publishers } from './types';
+import type { Comment, EditorialGroup, GroupPublication, News, Publisher, User } from './types';
+
+function formatPublishedRu(iso: string): string {
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ru });
+  } catch {
+    return iso;
+  }
+}
 
 function AppRoutes() {
   const [, setLocation] = useLocation();
@@ -27,10 +37,12 @@ function AppRoutes() {
   const detailId = newsMatch && routeParams?.id ? routeParams.id : null;
 
   const [authReady, setAuthReady] = useState(false);
-  const [selectedPublisher, setSelectedPublisher] = useState<number | null>(null);
+  const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [news] = useState<News[]>(initialNews);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -38,6 +50,11 @@ function AppRoutes() {
   const [groupPublications, setGroupPublications] = useState<GroupPublication[]>([]);
   const [editorialLoading, setEditorialLoading] = useState(false);
   const [editorialError, setEditorialError] = useState<string | null>(null);
+
+  const loadFeed = useCallback(async () => {
+    const posts = await listFeedPosts();
+    setNews(posts);
+  }, []);
 
   const loadEditorialData = useCallback(async () => {
     const groups = await listPublisherGroups();
@@ -83,16 +100,46 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setFeedLoading(true);
+        setFeedError(null);
+        await loadFeed();
+      } catch (e) {
+        if (!cancelled) setFeedError(getApiErrorMessage(e));
+      } finally {
+        if (!cancelled) setFeedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadFeed]);
+
+  useEffect(() => {
     if (!showProfile || currentUser?.role !== 'publisher') {
       return;
     }
     void openEditorialLoad();
   }, [showProfile, currentUser?.role, openEditorialLoad]);
 
+  const feedPublishers = useMemo(() => {
+    const map = new Map<string, Publisher>();
+    for (const item of news) {
+      if (!map.has(item.publisher.id)) {
+        map.set(item.publisher.id, { ...item.publisher });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }, [news]);
+
   const selectedNews = detailId
     ? (news.find((n) => String(n.id) === detailId) ?? null)
     : null;
-  const invalidNewsRoute = Boolean(newsMatch && detailId && !selectedNews);
+  const invalidNewsRoute = Boolean(
+    newsMatch && detailId && !feedLoading && !selectedNews,
+  );
 
   const filteredNews = news.filter((item) => {
     const matchesPublisher =
@@ -106,7 +153,7 @@ function AppRoutes() {
 
   const trendingViews = filteredNews.reduce((sum, n) => sum + n.views, 0);
 
-  const handleAddComment = (newsId: number, text: string) => {
+  const handleAddComment = (newsId: string, text: string) => {
     if (!currentUser) {
       setShowAuthModal(true);
       return;
@@ -165,42 +212,39 @@ function AppRoutes() {
   ) => {
     await createGroupPublication(groupId, payload);
     await loadEditorialData();
+    try {
+      await loadFeed();
+    } catch {
+      // лента обновится при следующем заходе; ошибку не перекрываем
+    }
   };
 
   const publisherActivityPosts = useMemo(() => {
     if (currentUser?.role !== 'publisher') return [];
-    const fromEditorial = groupPublications.map((p) => ({
+    return groupPublications.map((p) => ({
       id: p.id,
       title: p.title,
       excerpt: p.excerpt,
       image: p.image,
       views: p.views,
       comments: p.comments,
-      publishedAt: p.publishedAt,
+      publishedAt: formatPublishedRu(p.publishedAt),
     }));
-    const fromDemo = news.map((n) => ({
-      id: n.id,
-      title: n.title,
-      excerpt: n.excerpt,
-      image: n.image,
-      views: n.views,
-      comments: n.comments,
-      publishedAt: n.publishedAt,
-    }));
-    return [...fromEditorial, ...fromDemo];
-  }, [currentUser?.role, groupPublications, news]);
+  }, [currentUser?.role, groupPublications]);
 
   const userComments = currentUser
     ? comments
         .filter((c) => c.author === currentUser.name)
         .map((c) => ({
           ...c,
-          newsTitle: news.find((n) => n.id === c.newsId)?.title || 'Новость не найдена',
+          newsTitle:
+            news.find((n) => String(n.id) === String(c.newsId))?.title ||
+            'Новость не найдена',
         }))
     : [];
 
   const newsComments = selectedNews
-    ? comments.filter((c) => c.newsId === selectedNews.id)
+    ? comments.filter((c) => String(c.newsId) === String(selectedNews.id))
     : [];
 
   if (invalidNewsRoute) {
@@ -219,11 +263,13 @@ function AppRoutes() {
       onOpenProfile={() => setShowProfile(true)}
     >
       <HomePage
-        publishers={publishers}
+        publishers={feedPublishers}
         selectedPublisher={selectedPublisher}
         onSelectPublisher={setSelectedPublisher}
         filteredNews={filteredNews}
         onOpenNews={(id) => setLocation(`/news/${id}`)}
+        feedLoading={feedLoading}
+        feedError={feedError}
       />
 
       {selectedNews && (

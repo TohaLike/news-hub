@@ -2,7 +2,7 @@ import { MessageCircle, Eye, Clock } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface NewsCardProps {
-  id: number;
+  id: string;
   title: string;
   excerpt: string;
   image: string;

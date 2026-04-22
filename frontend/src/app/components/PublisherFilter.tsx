@@ -1,15 +1,15 @@
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface Publisher {
-  id: number;
+  id: string;
   name: string;
   logo: string;
 }
 
 interface PublisherFilterProps {
   publishers: Publisher[];
-  selectedPublisher: number | null;
-  onSelectPublisher: (id: number | null) => void;
+  selectedPublisher: string | null;
+  onSelectPublisher: (id: string | null) => void;
 }
 
 export function PublisherFilter({ publishers, selectedPublisher, onSelectPublisher }: PublisherFilterProps) {

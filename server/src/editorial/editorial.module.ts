@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EditorialController } from './editorial.controller';
+import { FeedController } from './feed.controller';
 import { EditorialService } from './editorial.service';
 import {
   EditorialGroup,
@@ -18,7 +19,7 @@ import {
       { name: GroupPublication.name, schema: GroupPublicationSchema },
     ]),
   ],
-  controllers: [EditorialController],
+  controllers: [EditorialController, FeedController],
   providers: [EditorialService],
   exports: [EditorialService],
 })

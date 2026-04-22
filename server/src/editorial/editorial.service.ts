@@ -15,6 +15,7 @@ import {
   GroupPublication,
   GroupPublicationDocument,
 } from './schemas/group-publication.schema';
+import { User } from 'src/user/schemas/user.schema';
 
 const DEFAULT_POST_IMAGE =
   'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=450&fit=crop';
@@ -91,6 +92,101 @@ export class EditorialService {
       .sort({ createdAt: -1 })
       .exec();
     return list.map((d) => this.toPublicationResponse(d));
+  }
+
+  /** Публичная лента: все публикации с данными издателя и группы. */
+  async listPublicFeed(limit = 100) {
+    type PopulatedPublisher = {
+      _id: Types.ObjectId;
+      name?: string;
+      email?: string;
+    };
+    type PopulatedGroup = {
+      _id: Types.ObjectId;
+      name: string;
+      publisherId?: PopulatedPublisher | null;
+    };
+    type LeanPub = {
+      _id: Types.ObjectId;
+      title: string;
+      excerpt: string;
+      content: string;
+      image: string;
+      category: string;
+      views: number;
+      comments: number;
+      createdAt?: Date;
+      groupId?: PopulatedGroup | Types.ObjectId | null;
+    };
+
+    const rows = (await this.pubModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate({
+        path: 'groupId',
+        select: 'name publisherId',
+        populate: {
+          path: 'publisherId',
+          model: User.name,
+          select: 'name email',
+        },
+      })
+      .lean()
+      .exec()) as LeanPub[];
+
+    const result: Array<{
+      id: string;
+      title: string;
+      excerpt: string;
+      content: string;
+      image: string;
+      category: string;
+      views: number;
+      comments: number;
+      publishedAt: string;
+      groupName: string;
+      publisher: { id: string; name: string; logo: string };
+    }> = [];
+
+    for (const doc of rows) {
+      const g = doc.groupId;
+      if (!g || typeof g !== 'object' || !('publisherId' in g)) continue;
+      const group = g as PopulatedGroup;
+      const u = group.publisherId;
+      if (!u || typeof u !== 'object') continue;
+
+      const displayName =
+        (u.name && String(u.name).trim()) ||
+        (u.email ? String(u.email).split('@')[0] : '') ||
+        'Издатель';
+      const created = doc.createdAt;
+      const publishedAt =
+        created instanceof Date
+          ? created.toISOString()
+          : new Date().toISOString();
+      const logoLabel = encodeURIComponent(displayName.slice(0, 40));
+
+      result.push({
+        id: String(doc._id),
+        title: doc.title,
+        excerpt: doc.excerpt,
+        content: doc.content,
+        image: doc.image?.trim() ? doc.image.trim() : DEFAULT_POST_IMAGE,
+        category: doc.category,
+        views: doc.views ?? 0,
+        comments: doc.comments ?? 0,
+        publishedAt,
+        groupName: group.name,
+        publisher: {
+          id: String(u._id),
+          name: displayName,
+          logo: `https://ui-avatars.com/api/?name=${logoLabel}&size=128&background=6366f1&color=fff`,
+        },
+      });
+    }
+
+    return result;
   }
 
   private async findGroupDocument(
