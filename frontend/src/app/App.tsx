@@ -20,7 +20,8 @@ import { UserProfile } from './components/UserProfile';
 import { userFromMe } from './lib/sessionUser';
 import { MainLayout } from './layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
-import type { Comment, EditorialGroup, GroupPublication, News, Publisher, User } from './types';
+import type { NewsRubric } from './constants/rubrics';
+import type { Comment, EditorialGroup, GroupPublication, News, User } from './types';
 
 function formatPublishedRu(iso: string): string {
   try {
@@ -37,7 +38,7 @@ function AppRoutes() {
   const detailId = newsMatch && routeParams?.id ? routeParams.id : null;
 
   const [authReady, setAuthReady] = useState(false);
-  const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
+  const [selectedRubric, setSelectedRubric] = useState<NewsRubric | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [news, setNews] = useState<News[]>([]);
@@ -124,16 +125,6 @@ function AppRoutes() {
     void openEditorialLoad();
   }, [showProfile, currentUser?.role, openEditorialLoad]);
 
-  const feedPublishers = useMemo(() => {
-    const map = new Map<string, Publisher>();
-    for (const item of news) {
-      if (!map.has(item.publisher.id)) {
-        map.set(item.publisher.id, { ...item.publisher });
-      }
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  }, [news]);
-
   const selectedNews = detailId
     ? (news.find((n) => String(n.id) === detailId) ?? null)
     : null;
@@ -142,13 +133,13 @@ function AppRoutes() {
   );
 
   const filteredNews = news.filter((item) => {
-    const matchesPublisher =
-      selectedPublisher === null || item.publisher.id === selectedPublisher;
+    const matchesRubric =
+      selectedRubric === null || item.category === selectedRubric;
     const matchesSearch =
       searchQuery === '' ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPublisher && matchesSearch;
+    return matchesRubric && matchesSearch;
   });
 
   const trendingViews = filteredNews.reduce((sum, n) => sum + n.views, 0);
@@ -263,9 +254,8 @@ function AppRoutes() {
       onOpenProfile={() => setShowProfile(true)}
     >
       <HomePage
-        publishers={feedPublishers}
-        selectedPublisher={selectedPublisher}
-        onSelectPublisher={setSelectedPublisher}
+        selectedRubric={selectedRubric}
+        onSelectRubric={setSelectedRubric}
         filteredNews={filteredNews}
         onOpenNews={(id) => setLocation(`/news/${id}`)}
         feedLoading={feedLoading}

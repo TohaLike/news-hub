@@ -17,51 +17,47 @@ interface NewsCardProps {
   onClick: () => void;
 }
 
-export function NewsCard({ 
-  title, 
-  excerpt, 
-  image, 
-  publisher, 
-  category, 
-  views, 
-  comments, 
+export function NewsCard({
+  title,
+  excerpt,
+  image,
+  publisher,
+  category,
+  views,
+  comments,
   publishedAt,
-  onClick 
+  onClick,
 }: NewsCardProps) {
   return (
-    <article 
-      className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+    <article
+      className="cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm transition-shadow hover:shadow-md"
       onClick={onClick}
     >
       <div className="relative h-48 overflow-hidden">
-        <ImageWithFallback 
-          src={image} 
+        <ImageWithFallback
+          src={image}
           alt={title}
-          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
         />
-        <div className="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+        <div className="absolute left-3 top-3 rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
           {category}
         </div>
       </div>
-      
+
       <div className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <ImageWithFallback 
-            src={publisher.logo} 
+        <div className="mb-3 flex items-center gap-2">
+          <ImageWithFallback
+            src={publisher.logo}
             alt={publisher.name}
-            className="w-6 h-6 rounded-full object-cover"
+            className="h-6 w-6 rounded-full object-cover"
           />
           <span className="text-sm text-gray-600">{publisher.name}</span>
         </div>
-        
-        <h3 className="text-lg mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
-          {title}
-        </h3>
-        
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-          {excerpt}
-        </p>
-        
+
+        <h3 className="mb-2 line-clamp-2 text-lg transition-colors hover:text-blue-600">{title}</h3>
+
+        <p className="mb-4 line-clamp-2 text-sm text-gray-600">{excerpt}</p>
+
         <div className="flex items-center justify-between text-sm text-gray-500">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">

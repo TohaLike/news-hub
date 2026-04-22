@@ -1,11 +1,11 @@
 import { NewsCard } from '../components/NewsCard';
-import { PublisherFilter } from '../components/PublisherFilter';
-import type { News, Publisher } from '../types';
+import { RubricFilter } from '../components/RubricFilter';
+import type { NewsRubric } from '../constants/rubrics';
+import type { News } from '../types';
 
 export interface HomePageProps {
-  publishers: Publisher[];
-  selectedPublisher: string | null;
-  onSelectPublisher: (id: string | null) => void;
+  selectedRubric: NewsRubric | null;
+  onSelectRubric: (rubric: NewsRubric | null) => void;
   filteredNews: News[];
   onOpenNews: (id: string) => void;
   feedLoading?: boolean;
@@ -13,9 +13,8 @@ export interface HomePageProps {
 }
 
 export function HomePage({
-  publishers,
-  selectedPublisher,
-  onSelectPublisher,
+  selectedRubric,
+  onSelectRubric,
   filteredNews,
   onOpenNews,
   feedLoading = false,
@@ -23,11 +22,7 @@ export function HomePage({
 }: HomePageProps) {
   return (
     <>
-      <PublisherFilter
-        publishers={publishers}
-        selectedPublisher={selectedPublisher}
-        onSelectPublisher={onSelectPublisher}
-      />
+      <RubricFilter selectedRubric={selectedRubric} onSelectRubric={onSelectRubric} />
 
       {feedError && !feedLoading && filteredNews.length === 0 ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-8 text-center text-red-800">

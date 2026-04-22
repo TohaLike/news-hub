@@ -9,9 +9,18 @@ import {
   type CreateEditorialGroupValues,
   type CreateGroupPublicationValues,
 } from '../schemas/editorial';
+import { DEFAULT_RUBRIC, NEWS_RUBRICS } from '../constants/rubrics';
 import { getApiErrorMessage } from './auth/getApiErrorMessage';
 import { Button } from './ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from './ui/form';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { cn } from './ui/utils';
@@ -74,7 +83,7 @@ export function PublisherEditorialPanel({
       title: '',
       excerpt: '',
       content: '',
-      category: '',
+      category: DEFAULT_RUBRIC,
       image: '',
     },
   });
@@ -126,7 +135,7 @@ export function PublisherEditorialPanel({
         title: '',
         excerpt: '',
         content: '',
-        category: '',
+        category: values.category.trim(),
         image: '',
       });
     } catch (e) {
@@ -381,14 +390,30 @@ export function PublisherEditorialPanel({
                       name="category"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Рубрика</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Например: Технологии"
-                              disabled={loading}
-                              {...field}
-                            />
-                          </FormControl>
+                          <FormLabel>Рубрики</FormLabel>
+                          <FormDescription>
+                            Выберите рубрику из списка — так материалы единообразно попадают в ленту и
+                            фильтры.
+                          </FormDescription>
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {NEWS_RUBRICS.map((rubric) => (
+                              <button
+                                key={rubric}
+                                type="button"
+                                disabled={loading}
+                                onClick={() => field.onChange(rubric)}
+                                className={cn(
+                                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                                  field.value === rubric
+                                    ? 'bg-violet-600 text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                                  loading && 'pointer-events-none opacity-50',
+                                )}
+                              >
+                                {rubric}
+                              </button>
+                            ))}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

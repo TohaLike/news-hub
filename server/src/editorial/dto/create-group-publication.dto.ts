@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsOptional,
   IsString,
   IsUrl,
@@ -6,6 +7,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { NEWS_RUBRICS } from '../constants/rubrics';
 
 export class CreateGroupPublicationDto {
   @IsString()
@@ -24,8 +26,7 @@ export class CreateGroupPublicationDto {
   content: string;
 
   @IsString()
-  @MinLength(2)
-  @MaxLength(60)
+  @IsIn([...NEWS_RUBRICS], { message: 'Выберите рубрику из списка' })
   category: string;
 
   @IsOptional()

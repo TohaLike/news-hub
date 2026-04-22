@@ -15,10 +15,11 @@ interface PublisherFilterProps {
 export function PublisherFilter({ publishers, selectedPublisher, onSelectPublisher }: PublisherFilterProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-      <h3 className="mb-4">Издательства</h3>
+      <h3 className="mb-4 text-base font-semibold text-gray-900">Издатели</h3>
       
       <div className="flex flex-wrap gap-2">
         <button
+          type="button"
           onClick={() => onSelectPublisher(null)}
           className={`px-4 py-2 rounded-full transition-colors ${
             selectedPublisher === null 
@@ -31,6 +32,7 @@ export function PublisherFilter({ publishers, selectedPublisher, onSelectPublish
         
         {publishers.map((publisher) => (
           <button
+            type="button"
             key={publisher.id}
             onClick={() => onSelectPublisher(publisher.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
