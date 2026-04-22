@@ -163,13 +163,15 @@ export function UserProfile({
                 </div>
                 <p
                   className={cn(
-                    'mb-2 text-sm',
+                    'mb-2 min-w-0 max-w-full break-words text-sm [overflow-wrap:anywhere] [word-break:break-word]',
                     user.role === 'publisher' ? 'text-violet-800/90' : 'text-gray-600',
                   )}
                 >
                   {comment.newsTitle}
                 </p>
-                <p className="text-gray-900">{comment.text}</p>
+                <p className="min-w-0 max-w-full break-words text-gray-900 [overflow-wrap:anywhere] [word-break:break-word]">
+                  {comment.text}
+                </p>
                 <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1">
                     <span aria-hidden>👍</span> {comment.likes}
@@ -188,20 +190,24 @@ export function UserProfile({
     );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
-      <div className="min-h-screen px-4 py-8">
+    <div className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto bg-black/50">
+      <div className="min-h-screen px-3 py-6 sm:px-4 sm:py-8">
         <div
           className={cn(
-            'mx-auto rounded-lg bg-white shadow-xl',
+            'mx-auto min-w-0 max-w-full overflow-hidden rounded-xl border border-gray-100/90 bg-white shadow-xl ring-1 ring-black/5',
             user.role === 'publisher' ? 'max-w-5xl' : 'max-w-4xl',
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-2xl">Профиль пользователя</h2>
-            <button 
+          <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-4 sm:p-6">
+            <h2 className="min-w-0 flex-1 text-xl font-semibold text-gray-900 sm:text-2xl">
+              Профиль пользователя
+            </h2>
+            <button
+              type="button"
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Закрыть"
+              className="shrink-0 rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
             >
               <X size={24} />
             </button>
@@ -257,7 +263,7 @@ export function UserProfile({
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="min-w-0 p-6">
             {activeTab === 'info' ? (
               <div>
                 {/* Avatar Section */}
@@ -371,7 +377,9 @@ export function UserProfile({
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="px-4 py-2 bg-gray-50 rounded-lg">{user.name}</p>
+                      <p className="break-words rounded-lg bg-gray-50 px-4 py-2 [overflow-wrap:anywhere]">
+                        {user.name}
+                      </p>
                     )}
                   </div>
 
@@ -387,7 +395,9 @@ export function UserProfile({
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="px-4 py-2 bg-gray-50 rounded-lg">{user.email}</p>
+                      <p className="break-words rounded-lg bg-gray-50 px-4 py-2 [overflow-wrap:anywhere]">
+                        {user.email}
+                      </p>
                     )}
                   </div>
 
@@ -522,10 +532,10 @@ export function UserProfile({
                               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent sm:bg-gradient-to-r" />
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
-                              <h4 className="text-base font-semibold leading-snug text-gray-900">
+                              <h4 className="line-clamp-2 text-base font-semibold leading-snug text-gray-900 [overflow-wrap:anywhere]">
                                 {post.title}
                               </h4>
-                              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">
+                              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600 [overflow-wrap:anywhere]">
                                 {post.excerpt}
                               </p>
                               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">

@@ -35,6 +35,9 @@ interface NewsDetailProps {
   } | null;
 }
 
+const safeText =
+  'min-w-0 max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word]';
+
 export function NewsDetail({ news, comments, onClose, onAddComment, currentUser }: NewsDetailProps) {
   const [newComment, setNewComment] = useState('');
 
@@ -47,93 +50,96 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto bg-black bg-opacity-50">
       <div className="min-h-screen px-4 py-8">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl">
+        <div className="mx-auto max-w-4xl min-w-0 bg-white rounded-lg shadow-xl">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-lg z-10">
-            <div className="flex items-center gap-3">
-              <ImageWithFallback 
-                src={news.publisher.logo} 
+          <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-lg border-b bg-white px-6 py-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <ImageWithFallback
+                src={news.publisher.logo}
                 alt={news.publisher.name}
-                className="w-10 h-10 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
               />
-              <div>
-                <div className="text-sm text-gray-600">{news.publisher.name}</div>
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">
+                <div className={`text-sm text-gray-600 ${safeText}`}>{news.publisher.name}</div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                  <span className="flex min-w-0 max-w-full items-center gap-1">
                     <Clock size={14} />
-                    {news.publishedAt}
+                    <span className={safeText}>{news.publishedAt}</span>
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex shrink-0 items-center gap-1">
                     <Eye size={14} />
                     {news.views}
                   </span>
                 </div>
               </div>
             </div>
-            <button 
+            <button
+              type="button"
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="shrink-0 p-2 transition-colors hover:bg-gray-100 rounded-full"
             >
               <X size={24} />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6">
-            <div className="mb-4">
+          <div className="min-w-0 p-6">
+            <div className="mb-4 min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
+                <span className="inline-block max-w-full truncate rounded-full bg-blue-600 px-3 py-1 text-sm text-white">
                   {news.category}
                 </span>
                 {news.groupName ? (
-                  <span className="text-sm text-gray-500">Группа: {news.groupName}</span>
+                  <span className={`text-sm text-gray-500 ${safeText}`}>Группа: {news.groupName}</span>
                 ) : null}
               </div>
-              <h1 className="mb-4 text-3xl">{news.title}</h1>
+              <h1 className={`mb-4 text-3xl ${safeText}`}>{news.title}</h1>
             </div>
 
-            <ImageWithFallback 
-              src={news.image} 
+            <ImageWithFallback
+              src={news.image}
               alt={news.title}
-              className="w-full h-96 object-cover rounded-lg mb-6"
+              className="mb-6 h-96 w-full max-w-full rounded-lg object-cover"
             />
 
-            <div className="prose max-w-none mb-8">
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+            <div className="prose mb-8 max-w-none">
+              <p className={`text-gray-700 leading-relaxed whitespace-pre-line ${safeText}`}>
                 {news.content}
               </p>
             </div>
 
             {/* Comments Section */}
             <div className="border-t pt-6">
-              <h2 className="text-xl mb-6 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-xl">
                 <MessageCircle size={24} />
                 Обсуждение ({comments.length})
               </h2>
 
-              {/* Comment Form */}
-              <form onSubmit={handleSubmit} className="mb-6">
+              <form onSubmit={handleSubmit} className="mb-6 min-w-0">
                 <div className="flex gap-3">
-                  <ImageWithFallback 
-                    src={currentUser?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop"}
+                  <ImageWithFallback
+                    src={
+                      currentUser?.avatar ||
+                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
+                    }
                     alt="Ваш аватар"
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="h-10 w-10 shrink-0 rounded-full object-cover"
                   />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Добавьте комментарий..."
-                      className="w-full px-4 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="box-border w-full min-w-0 max-w-full resize-none rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                     />
                     <div className="mt-2 flex justify-end">
                       <button
                         type="submit"
                         disabled={!newComment.trim()}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Send size={16} />
                         Отправить
@@ -143,22 +149,24 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
                 </div>
               </form>
 
-              {/* Comments List */}
               <div className="space-y-4">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3 p-4 bg-gray-50 rounded-lg">
-                    <ImageWithFallback 
-                      src={comment.avatar} 
+                  <div key={comment.id} className="flex gap-3 rounded-lg bg-gray-50 p-4">
+                    <ImageWithFallback
+                      src={comment.avatar}
                       alt={comment.author}
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="h-10 w-10 shrink-0 rounded-full object-cover"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm text-gray-900">{comment.author}</span>
-                        <span className="text-xs text-gray-500">{comment.timestamp}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className={`text-sm text-gray-900 ${safeText}`}>{comment.author}</span>
+                        <span className="shrink-0 text-xs text-gray-500">{comment.timestamp}</span>
                       </div>
-                      <p className="text-gray-700 text-sm mb-2">{comment.text}</p>
-                      <button className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
+                      <p className={`mb-2 text-sm text-gray-700 ${safeText}`}>{comment.text}</p>
+                      <button
+                        type="button"
+                        className="text-xs text-gray-500 transition-colors hover:text-blue-600"
+                      >
                         👍 {comment.likes}
                       </button>
                     </div>
