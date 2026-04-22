@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Redirect, Router, useLocation, useRoute } from 'wouter';
-import { clearAccessToken, logout, me, refreshSession } from '@/api';
+import {
+  clearAccessToken,
+  createGroupPublication,
+  createPublisherGroup,
+  listGroupPublications,
+  listPublisherGroups,
+  logout,
+  me,
+  refreshSession,
+} from '@/api';
+import { getApiErrorMessage } from './components/auth/getApiErrorMessage';
 import { AuthModal } from './components/AuthModal';
 import { NewsDetail } from './components/NewsDetail';
 import { UserProfile } from './components/UserProfile';
@@ -26,6 +36,31 @@ function AppRoutes() {
   const [showProfile, setShowProfile] = useState(false);
   const [editorialGroups, setEditorialGroups] = useState<EditorialGroup[]>([]);
   const [groupPublications, setGroupPublications] = useState<GroupPublication[]>([]);
+  const [editorialLoading, setEditorialLoading] = useState(false);
+  const [editorialError, setEditorialError] = useState<string | null>(null);
+
+  const loadEditorialData = useCallback(async () => {
+    const groups = await listPublisherGroups();
+    setEditorialGroups(groups);
+    const pubs: GroupPublication[] = [];
+    for (const g of groups) {
+      const list = await listGroupPublications(g.id);
+      pubs.push(...list);
+    }
+    setGroupPublications(pubs);
+  }, []);
+
+  const openEditorialLoad = useCallback(async () => {
+    setEditorialLoading(true);
+    setEditorialError(null);
+    try {
+      await loadEditorialData();
+    } catch (e) {
+      setEditorialError(getApiErrorMessage(e));
+    } finally {
+      setEditorialLoading(false);
+    }
+  }, [loadEditorialData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +81,13 @@ function AppRoutes() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!showProfile || currentUser?.role !== 'publisher') {
+      return;
+    }
+    void openEditorialLoad();
+  }, [showProfile, currentUser?.role, openEditorialLoad]);
 
   const selectedNews = detailId
     ? (news.find((n) => String(n.id) === detailId) ?? null)
@@ -95,6 +137,9 @@ function AppRoutes() {
     }
     setCurrentUser(null);
     setShowProfile(false);
+    setEditorialGroups([]);
+    setGroupPublications([]);
+    setEditorialError(null);
   };
 
   const handleUpdateProfile = (name: string, email: string, avatar: string) => {
@@ -103,37 +148,23 @@ function AppRoutes() {
     }
   };
 
-  const handleCreateEditorialGroup = (payload: { name: string; publisherId: number }) => {
-    setEditorialGroups((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        name: payload.name,
-        publisherId: payload.publisherId,
-        createdAt: new Date().toLocaleDateString('ru-RU', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        }),
-      },
-    ]);
+  const handleCreateEditorialGroup = async (payload: { name: string }) => {
+    await createPublisherGroup(payload.name);
+    await loadEditorialData();
   };
 
-  const handleCreateGroupPublication = (
+  const handleCreateGroupPublication = async (
     groupId: string,
-    payload: Omit<GroupPublication, 'id' | 'groupId' | 'publishedAt' | 'views' | 'comments'>,
+    payload: {
+      title: string;
+      excerpt: string;
+      content: string;
+      category: string;
+      image?: string;
+    },
   ) => {
-    setGroupPublications((prev) => [
-      ...prev,
-      {
-        ...payload,
-        id: crypto.randomUUID(),
-        groupId,
-        publishedAt: 'Только что',
-        views: 0,
-        comments: 0,
-      },
-    ]);
+    await createGroupPublication(groupId, payload);
+    await loadEditorialData();
   };
 
   const publisherActivityPosts = useMemo(() => {
@@ -217,14 +248,24 @@ function AppRoutes() {
           user={currentUser}
           comments={userComments}
           publisherPosts={publisherActivityPosts}
-          publishersCatalog={
-            currentUser.role === 'publisher' ? publishers : undefined
-          }
           editorialGroups={
             currentUser.role === 'publisher' ? editorialGroups : undefined
           }
           groupPublications={
             currentUser.role === 'publisher' ? groupPublications : undefined
+          }
+          editorialLoading={
+            currentUser.role === 'publisher' ? editorialLoading : undefined
+          }
+          editorialError={
+            currentUser.role === 'publisher' ? editorialError : undefined
+          }
+          onRetryEditorialLoad={
+            currentUser.role === 'publisher'
+              ? () => {
+                  void openEditorialLoad();
+                }
+              : undefined
           }
           onCreateEditorialGroup={
             currentUser.role === 'publisher' ? handleCreateEditorialGroup : undefined

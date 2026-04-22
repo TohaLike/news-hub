@@ -37,16 +37,15 @@ export interface User {
   role: AccountRole;
 }
 
-/** Тематическая группа / рубрика внутри издательства; публикации создаются только внутри группы. */
+/** Тематическая группа издателя; `publisherId` — id пользователя-издателя на бэке. */
 export interface EditorialGroup {
   id: string;
   name: string;
-  /** Связь с издательством из каталога (`publishers`). */
-  publisherId: number;
+  publisherId: string;
   createdAt: string;
 }
 
-/** Материал, созданный издателем внутри группы (пока только фронт). */
+/** Материал издателя внутри группы (с бэка). */
 export interface GroupPublication {
   id: string;
   groupId: string;

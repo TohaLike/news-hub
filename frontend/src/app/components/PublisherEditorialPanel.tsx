@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Building2, FolderKanban, ImageIcon, Layers, Plus, Sparkles } from 'lucide-react';
+import { AlertCircle, Building2, FolderKanban, ImageIcon, Layers, Plus, Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { EditorialGroup, GroupPublication, Publisher } from '../types';
+import type { EditorialGroup, GroupPublication } from '../types';
 import {
   createEditorialGroupSchema,
   createGroupPublicationSchema,
   type CreateEditorialGroupValues,
   type CreateGroupPublicationValues,
 } from '../schemas/editorial';
+import { getApiErrorMessage } from './auth/getApiErrorMessage';
 import { Button } from './ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
@@ -16,35 +17,55 @@ import { Textarea } from './ui/textarea';
 import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
-const DEFAULT_POST_IMAGE =
-  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&h=450&fit=crop';
+function formatDisplayDate(isoOrText: string): string {
+  if (!isoOrText) return '';
+  const t = Date.parse(isoOrText);
+  if (Number.isNaN(t)) return isoOrText;
+  return new Date(t).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export interface PublisherEditorialPanelProps {
-  publishers: Publisher[];
+  /** Подпись к связи с издателем (имя аккаунта). */
+  publisherName: string;
   groups: EditorialGroup[];
   publications: GroupPublication[];
-  onCreateGroup: (payload: { name: string; publisherId: number }) => void;
+  loading?: boolean;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
+  onCreateGroup: (payload: { name: string }) => Promise<void>;
   onCreatePublication: (
     groupId: string,
-    payload: Omit<GroupPublication, 'id' | 'groupId' | 'publishedAt' | 'views' | 'comments'>,
-  ) => void;
+    payload: {
+      title: string;
+      excerpt: string;
+      content: string;
+      category: string;
+      image?: string;
+    },
+  ) => Promise<void>;
 }
 
 export function PublisherEditorialPanel({
-  publishers,
+  publisherName,
   groups,
   publications,
+  loading = false,
+  loadError = null,
+  onRetryLoad,
   onCreateGroup,
   onCreatePublication,
 }: PublisherEditorialPanelProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupFormError, setGroupFormError] = useState<string | null>(null);
+  const [postFormError, setPostFormError] = useState<string | null>(null);
 
   const groupForm = useForm<CreateEditorialGroupValues>({
     resolver: zodResolver(createEditorialGroupSchema),
-    defaultValues: {
-      name: '',
-      publisherId: publishers[0]?.id ?? 1,
-    },
+    defaultValues: { name: '' },
   });
 
   const postForm = useForm<CreateGroupPublicationValues>({
@@ -74,46 +95,71 @@ export function PublisherEditorialPanel({
     [groups, selectedGroupId],
   );
 
-  const publisherById = useMemo(() => {
-    const m = new Map<number, Publisher>();
-    for (const p of publishers) m.set(p.id, p);
-    return m;
-  }, [publishers]);
-
   const postsInGroup = useMemo(
     () => publications.filter((p) => p.groupId === selectedGroupId),
     [publications, selectedGroupId],
   );
 
-  const onSubmitGroup = groupForm.handleSubmit((values) => {
-    onCreateGroup({ name: values.name.trim(), publisherId: values.publisherId });
-    groupForm.reset({
-      name: '',
-      publisherId: values.publisherId,
-    });
+  const onSubmitGroup = groupForm.handleSubmit(async (values) => {
+    setGroupFormError(null);
+    try {
+      await onCreateGroup({ name: values.name.trim() });
+      groupForm.reset({ name: '' });
+    } catch (e) {
+      setGroupFormError(getApiErrorMessage(e));
+    }
   });
 
-  const onSubmitPost = postForm.handleSubmit((values) => {
+  const onSubmitPost = postForm.handleSubmit(async (values) => {
     if (!selectedGroupId) return;
-    const image = values.image.trim() ? values.image.trim() : DEFAULT_POST_IMAGE;
-    onCreatePublication(selectedGroupId, {
-      title: values.title.trim(),
-      excerpt: values.excerpt.trim(),
-      content: values.content.trim(),
-      category: values.category.trim(),
-      image,
-    });
-    postForm.reset({
-      title: '',
-      excerpt: '',
-      content: '',
-      category: '',
-      image: '',
-    });
+    setPostFormError(null);
+    const image = values.image.trim();
+    try {
+      await onCreatePublication(selectedGroupId, {
+        title: values.title.trim(),
+        excerpt: values.excerpt.trim(),
+        content: values.content.trim(),
+        category: values.category.trim(),
+        ...(image ? { image } : {}),
+      });
+      postForm.reset({
+        title: '',
+        excerpt: '',
+        content: '',
+        category: '',
+        image: '',
+      });
+    } catch (e) {
+      setPostFormError(getApiErrorMessage(e));
+    }
   });
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      {loading ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-[1px]"
+          aria-busy
+          aria-label="Загрузка редакции"
+        >
+          <p className="text-sm font-medium text-violet-800">Загрузка…</p>
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50/90 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-2 text-sm text-red-900">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>{loadError}</span>
+          </div>
+          {onRetryLoad ? (
+            <Button type="button" variant="outline" size="sm" onClick={onRetryLoad} className="shrink-0 border-red-300">
+              Повторить
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/90 via-white to-slate-50/80 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-3">
@@ -123,20 +169,19 @@ export function PublisherEditorialPanel({
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Редакция и группы</h3>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
-                Создайте тематические группы внутри издательства и публикуйте материалы только в
-                выбранной группе — так проще вести несколько направлений.
+                Создайте тематические группы и публикуйте материалы только в выбранной группе — данные
+                сохраняются на сервере.
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-violet-800 ring-1 ring-violet-200/70">
-            <Sparkles className="size-3.5" aria-hidden />
-            Локальный режим
+            <Server className="size-3.5" aria-hidden />
+            Сервер
           </span>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Колонка групп */}
         <div className="space-y-4 lg:col-span-5">
           <div className="flex items-center justify-between gap-2">
             <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
@@ -154,46 +199,41 @@ export function PublisherEditorialPanel({
                 <Building2 className="mx-auto mb-2 size-10 text-violet-300" strokeWidth={1.25} />
                 <p className="text-sm font-medium text-gray-800">Пока нет групп</p>
                 <p className="mx-auto mt-1 max-w-xs text-xs text-gray-500">
-                  Ниже создайте первую группу и привяжите её к издательству из каталога.
+                  Создайте первую группу ниже — она будет привязана к вашему аккаунту издателя.
                 </p>
               </div>
             ) : (
               groups.map((g) => {
-                const pub = publisherById.get(g.publisherId);
                 const count = publications.filter((p) => p.groupId === g.id).length;
                 const active = g.id === selectedGroupId;
+                const initial = g.name.trim().charAt(0).toUpperCase() || '?';
                 return (
                   <button
                     key={g.id}
                     type="button"
                     onClick={() => setSelectedGroupId(g.id)}
+                    disabled={loading}
                     className={cn(
                       'w-full rounded-xl border-2 p-3 text-left transition-all duration-200',
                       active
                         ? 'border-violet-500 bg-white shadow-md ring-2 ring-violet-500/15'
                         : 'border-transparent bg-white/80 hover:border-violet-200 hover:bg-white',
+                      loading && 'pointer-events-none opacity-60',
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      {pub ? (
-                        <ImageWithFallback
-                          src={pub.logo}
-                          alt=""
-                          className="size-10 shrink-0 rounded-lg object-cover ring-1 ring-gray-100"
-                        />
-                      ) : (
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-xs text-gray-500">
-                          ?
-                        </div>
-                      )}
+                      <div
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-sm font-bold text-violet-800 ring-1 ring-violet-200/80"
+                        aria-hidden
+                      >
+                        {initial}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-gray-900">{g.name}</p>
                         <p className="truncate text-xs text-gray-500">
-                          {pub?.name ?? 'Издательство'} · {g.createdAt}
+                          {publisherName} · {formatDisplayDate(g.createdAt)}
                         </p>
-                        <p className="mt-1 text-xs font-medium text-violet-700">
-                          Публикаций: {count}
-                        </p>
+                        <p className="mt-1 text-xs font-medium text-violet-700">Публикаций: {count}</p>
                       </div>
                     </div>
                   </button>
@@ -216,42 +256,21 @@ export function PublisherEditorialPanel({
                     <FormItem>
                       <FormLabel>Название группы</FormLabel>
                       <FormControl>
-                        <Input placeholder="Например: Технологии и ИИ" {...field} />
+                        <Input
+                          placeholder="Например: Технологии и ИИ"
+                          disabled={loading}
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={groupForm.control}
-                  name="publisherId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Издательство</FormLabel>
-                      <FormControl>
-                        <select
-                          className={cn(
-                            'flex h-10 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm',
-                            'ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                          )}
-                          value={String(field.value)}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        >
-                          {publishers.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {groupFormError ? <p className="text-destructive text-sm">{groupFormError}</p> : null}
                 <Button
                   type="submit"
                   className="w-full bg-violet-600 hover:bg-violet-700"
-                  disabled={groupForm.formState.isSubmitting}
+                  disabled={groupForm.formState.isSubmitting || loading}
                 >
                   {groupForm.formState.isSubmitting ? 'Создание…' : 'Создать группу'}
                 </Button>
@@ -260,15 +279,14 @@ export function PublisherEditorialPanel({
           </div>
         </div>
 
-        {/* Публикации в группе */}
         <div className="space-y-4 lg:col-span-7">
           {!selectedGroup ? (
             <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 px-6 py-12 text-center">
               <Layers className="mb-3 size-12 text-gray-300" strokeWidth={1.25} />
               <p className="font-medium text-gray-800">Выберите группу слева</p>
               <p className="mt-1 max-w-sm text-sm text-gray-500">
-                Публикации можно создавать только после выбора группы — так материал всегда
-                привязан к тематике и издательству.
+                Публикации создаются только внутри группы — так материал привязан к вашему издательскому
+                аккаунту.
               </p>
             </div>
           ) : (
@@ -281,10 +299,8 @@ export function PublisherEditorialPanel({
                     </p>
                     <h4 className="mt-1 text-xl font-bold text-gray-900">{selectedGroup.name}</h4>
                     <p className="mt-1 text-sm text-gray-600">
-                      Издательство:{' '}
-                      <span className="font-medium text-gray-900">
-                        {publisherById.get(selectedGroup.publisherId)?.name ?? '—'}
-                      </span>
+                      Издатель (аккаунт):{' '}
+                      <span className="font-medium text-gray-900">{publisherName}</span>
                     </p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -317,7 +333,9 @@ export function PublisherEditorialPanel({
                             <span className="rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
                               {post.category}
                             </span>
-                            <span className="text-xs text-gray-400">{post.publishedAt}</span>
+                            <span className="text-xs text-gray-400">
+                              {formatDisplayDate(post.publishedAt)}
+                            </span>
                           </div>
                           <h5 className="mt-1 font-semibold text-gray-900">{post.title}</h5>
                           <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.excerpt}</p>
@@ -348,7 +366,11 @@ export function PublisherEditorialPanel({
                         <FormItem>
                           <FormLabel>Заголовок</FormLabel>
                           <FormControl>
-                            <Input placeholder="Заголовок новости" {...field} />
+                            <Input
+                              placeholder="Заголовок новости"
+                              disabled={loading}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -361,7 +383,11 @@ export function PublisherEditorialPanel({
                         <FormItem>
                           <FormLabel>Рубрика</FormLabel>
                           <FormControl>
-                            <Input placeholder="Например: Технологии" {...field} />
+                            <Input
+                              placeholder="Например: Технологии"
+                              disabled={loading}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -374,7 +400,12 @@ export function PublisherEditorialPanel({
                         <FormItem>
                           <FormLabel>Лид / краткое описание</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="2–3 предложения для карточки в ленте" rows={3} {...field} />
+                            <Textarea
+                              placeholder="2–3 предложения для карточки в ленте"
+                              rows={3}
+                              disabled={loading}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -387,7 +418,13 @@ export function PublisherEditorialPanel({
                         <FormItem>
                           <FormLabel>Полный текст</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Основной текст материала" rows={8} className="min-h-40" {...field} />
+                            <Textarea
+                              placeholder="Основной текст материала"
+                              rows={8}
+                              className="min-h-40"
+                              disabled={loading}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -400,16 +437,17 @@ export function PublisherEditorialPanel({
                         <FormItem>
                           <FormLabel>URL обложки (необязательно)</FormLabel>
                           <FormControl>
-                            <Input type="url" placeholder="https://…" {...field} />
+                            <Input type="url" placeholder="https://…" disabled={loading} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                    {postFormError ? <p className="text-destructive text-sm">{postFormError}</p> : null}
                     <Button
                       type="submit"
                       className="w-full bg-violet-600 hover:bg-violet-700"
-                      disabled={postForm.formState.isSubmitting}
+                      disabled={postForm.formState.isSubmitting || loading}
                     >
                       {postForm.formState.isSubmitting ? 'Публикация…' : 'Опубликовать в группе'}
                     </Button>

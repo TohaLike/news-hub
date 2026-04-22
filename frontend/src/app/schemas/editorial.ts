@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const createEditorialGroupSchema = z.object({
   name: z.string().trim().min(2, 'Название — минимум 2 символа').max(80, 'Слишком длинное название'),
-  publisherId: z.coerce.number().int().positive('Выберите издательство'),
 });
 
 export type CreateEditorialGroupValues = z.infer<typeof createEditorialGroupSchema>;

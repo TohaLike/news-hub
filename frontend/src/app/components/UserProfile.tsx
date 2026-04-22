@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { AccountRole, EditorialGroup, GroupPublication, Publisher } from '../types';
+import type { AccountRole, EditorialGroup, GroupPublication } from '../types';
 import { PublisherEditorialPanel } from './PublisherEditorialPanel';
 import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -45,15 +45,23 @@ interface UserProfileProps {
   comments: Comment[];
   /** Для роли издателя — карточки «мои публикации» (передаётся из App из `news`). */
   publisherPosts?: PublisherActivityPost[];
-  /** Только для издателя: каталог издательств, группы и публикации в группах. */
-  publishersCatalog?: Publisher[];
+  /** Только для издателя: группы и публикации с API. */
   editorialGroups?: EditorialGroup[];
   groupPublications?: GroupPublication[];
-  onCreateEditorialGroup?: (payload: { name: string; publisherId: number }) => void;
+  editorialLoading?: boolean;
+  editorialError?: string | null;
+  onRetryEditorialLoad?: () => void;
+  onCreateEditorialGroup?: (payload: { name: string }) => Promise<void>;
   onCreateGroupPublication?: (
     groupId: string,
-    payload: Omit<GroupPublication, 'id' | 'groupId' | 'publishedAt' | 'views' | 'comments'>,
-  ) => void;
+    payload: {
+      title: string;
+      excerpt: string;
+      content: string;
+      category: string;
+      image?: string;
+    },
+  ) => Promise<void>;
   onClose: () => void;
   onUpdateProfile: (name: string, email: string, avatar: string) => void;
 }
@@ -62,9 +70,11 @@ export function UserProfile({
   user,
   comments,
   publisherPosts = [],
-  publishersCatalog,
   editorialGroups,
   groupPublications,
+  editorialLoading = false,
+  editorialError = null,
+  onRetryEditorialLoad,
   onCreateEditorialGroup,
   onCreateGroupPublication,
   onClose,
@@ -224,7 +234,6 @@ export function UserProfile({
               Активность
             </button>
             {user.role === 'publisher' &&
-            publishersCatalog &&
             editorialGroups !== undefined &&
             groupPublications !== undefined &&
             onCreateEditorialGroup &&
@@ -418,15 +427,17 @@ export function UserProfile({
               </div>
             ) : activeTab === 'editorial' &&
               user.role === 'publisher' &&
-              publishersCatalog &&
               editorialGroups !== undefined &&
               groupPublications !== undefined &&
               onCreateEditorialGroup &&
               onCreateGroupPublication ? (
               <PublisherEditorialPanel
-                publishers={publishersCatalog}
+                publisherName={user.name}
                 groups={editorialGroups}
                 publications={groupPublications}
+                loading={editorialLoading}
+                loadError={editorialError}
+                onRetryLoad={onRetryEditorialLoad}
                 onCreateGroup={onCreateEditorialGroup}
                 onCreatePublication={onCreateGroupPublication}
               />
