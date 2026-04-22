@@ -1,5 +1,14 @@
-import { BookOpen, Camera, Edit2, MessageCircle, Newspaper, Save, X } from 'lucide-react';
-import { useState } from 'react';
+import {
+  BookOpen,
+  Camera,
+  Edit2,
+  Eye,
+  MessageCircle,
+  Newspaper,
+  Save,
+  X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { AccountRole } from '../types';
 import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -13,6 +22,17 @@ interface Comment {
   likes: number;
 }
 
+/** Демо-публикации издателя (данные с ленты, только UI). */
+export interface PublisherActivityPost {
+  id: number;
+  title: string;
+  excerpt: string;
+  image: string;
+  views: number;
+  comments: number;
+  publishedAt: string;
+}
+
 interface UserProfileProps {
   user: {
     name: string;
@@ -21,11 +41,19 @@ interface UserProfileProps {
     role: AccountRole;
   };
   comments: Comment[];
+  /** Для роли издателя — карточки «мои публикации» (передаётся из App из `news`). */
+  publisherPosts?: PublisherActivityPost[];
   onClose: () => void;
   onUpdateProfile: (name: string, email: string, avatar: string) => void;
 }
 
-export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserProfileProps) {
+export function UserProfile({
+  user,
+  comments,
+  publisherPosts = [],
+  onClose,
+  onUpdateProfile,
+}: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user.name,
@@ -33,6 +61,7 @@ export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserPr
     avatar: user.avatar,
   });
   const [activeTab, setActiveTab] = useState<'info' | 'activity'>('info');
+  const [activityPanel, setActivityPanel] = useState<'posts' | 'comments'>('posts');
 
   const handleSave = () => {
     onUpdateProfile(formData.name, formData.email, formData.avatar);
@@ -71,6 +100,66 @@ export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserPr
 
   const { title: roleTitle, description: roleDescription, Icon: RoleIcon } =
     accountMeta[user.role];
+
+  useEffect(() => {
+    if (user.role === 'publisher') {
+      setActivityPanel('posts');
+    } else {
+      setActivityPanel('comments');
+    }
+  }, [user.role]);
+
+  const postCount = publisherPosts.length;
+
+  const renderCommentsList = () =>
+    comments.length > 0 ? (
+      <div className="space-y-4">
+        {comments.map((comment) => (
+          <div
+            key={comment.id}
+            className={cn(
+              'rounded-xl border p-4 transition-shadow',
+              user.role === 'publisher'
+                ? 'border-gray-100 bg-gradient-to-br from-slate-50/80 to-white shadow-sm'
+                : 'rounded-lg border bg-gray-50',
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <ImageWithFallback
+                src={user.avatar}
+                alt={user.name}
+                className="size-10 shrink-0 rounded-full object-cover ring-2 ring-white"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                  <span className="shrink-0 text-xs text-gray-500">{comment.timestamp}</span>
+                </div>
+                <p
+                  className={cn(
+                    'mb-2 text-sm',
+                    user.role === 'publisher' ? 'text-violet-800/90' : 'text-gray-600',
+                  )}
+                >
+                  {comment.newsTitle}
+                </p>
+                <p className="text-gray-900">{comment.text}</p>
+                <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>👍</span> {comment.likes}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="py-14 text-center">
+        <MessageCircle size={48} className="mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-500">Вы ещё не оставляли комментариев</p>
+      </div>
+    );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
@@ -280,44 +369,136 @@ export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserPr
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : user.role === 'publisher' ? (
               <div>
-                <h3 className="mb-4 flex items-center gap-2">
-                  <MessageCircle size={20} />
-                  Ваши комментарии ({comments.length})
-                </h3>
+                <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Активность
+                </p>
+                <div
+                  className="mb-6 flex gap-1 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/90 via-white to-slate-50/80 p-1.5 shadow-inner"
+                  role="tablist"
+                  aria-label="Разделы активности"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activityPanel === 'posts'}
+                    onClick={() => setActivityPanel('posts')}
+                    className={cn(
+                      'relative flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all duration-200',
+                      activityPanel === 'posts'
+                        ? 'bg-white text-violet-800 shadow-md ring-1 ring-violet-200/60'
+                        : 'text-gray-600 hover:bg-white/60 hover:text-gray-900',
+                    )}
+                  >
+                    <Newspaper className="size-4 shrink-0 opacity-80" aria-hidden />
+                    <span className="hidden sm:inline">Публикации</span>
+                    <span className="sm:hidden">Посты</span>
+                    <span
+                      className={cn(
+                        'min-w-[1.5rem] rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                        activityPanel === 'posts'
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-violet-100 text-violet-800',
+                      )}
+                    >
+                      {postCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activityPanel === 'comments'}
+                    onClick={() => setActivityPanel('comments')}
+                    className={cn(
+                      'relative flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all duration-200',
+                      activityPanel === 'comments'
+                        ? 'bg-white text-blue-800 shadow-md ring-1 ring-blue-200/60'
+                        : 'text-gray-600 hover:bg-white/60 hover:text-gray-900',
+                    )}
+                  >
+                    <MessageCircle className="size-4 shrink-0 opacity-80" aria-hidden />
+                    Комментарии
+                    <span
+                      className={cn(
+                        'min-w-[1.5rem] rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                        activityPanel === 'comments'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-100 text-blue-800',
+                      )}
+                    >
+                      {comments.length}
+                    </span>
+                  </button>
+                </div>
 
-                {comments.length > 0 ? (
-                  <div className="space-y-4">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="p-4 bg-gray-50 rounded-lg border">
-                        <div className="flex items-start gap-3 mb-2">
-                          <ImageWithFallback
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm text-gray-900">{user.name}</span>
-                              <span className="text-xs text-gray-500">{comment.timestamp}</span>
+                {activityPanel === 'posts' ? (
+                  postCount > 0 ? (
+                    <div className="space-y-4">
+                      {publisherPosts.map((post) => (
+                        <article
+                          key={post.id}
+                          className="group overflow-hidden rounded-2xl border border-violet-100/80 bg-white shadow-sm ring-1 ring-violet-500/5 transition-shadow hover:shadow-md"
+                        >
+                          <div className="flex flex-col gap-0 sm:flex-row">
+                            <div className="relative h-36 shrink-0 overflow-hidden sm:h-auto sm:w-44">
+                              <ImageWithFallback
+                                src={post.image}
+                                alt=""
+                                className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                              />
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent sm:bg-gradient-to-r" />
                             </div>
-                            <p className="text-sm text-gray-600 mb-2">{comment.newsTitle}</p>
-                            <p className="text-gray-900">{comment.text}</p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                              <span>👍 {comment.likes}</span>
+                            <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
+                              <h4 className="text-base font-semibold leading-snug text-gray-900">
+                                {post.title}
+                              </h4>
+                              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">
+                                {post.excerpt}
+                              </p>
+                              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
+                                <span className="inline-flex items-center gap-1.5 text-violet-700/90">
+                                  <Eye className="size-3.5" aria-hidden />
+                                  {post.views.toLocaleString('ru-RU')} просмотров
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 text-blue-700/90">
+                                  <MessageCircle className="size-3.5" aria-hidden />
+                                  {post.comments} в ленте
+                                </span>
+                                <span className="text-gray-400">{post.publishedAt}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 py-14 text-center">
+                      <Newspaper
+                        className="mx-auto mb-3 size-12 text-violet-300"
+                        strokeWidth={1.25}
+                        aria-hidden
+                      />
+                      <p className="font-medium text-gray-800">Пока нет публикаций</p>
+                      <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
+                        Когда появятся ваши материалы, они отобразятся в этом разделе.
+                      </p>
+                    </div>
+                  )
                 ) : (
-                  <div className="text-center py-12">
-                    <MessageCircle size={48} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500">Вы еще не оставляли комментариев</p>
-                  </div>
+                  renderCommentsList()
                 )}
+              </div>
+            ) : (
+              <div>
+                <h3 className="mb-4 flex items-center gap-2 text-gray-900">
+                  <MessageCircle size={20} className="text-blue-600" aria-hidden />
+                  Ваши комментарии
+                  <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-semibold text-blue-800 tabular-nums">
+                    {comments.length}
+                  </span>
+                </h3>
+                {renderCommentsList()}
               </div>
             )}
           </div>

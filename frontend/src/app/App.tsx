@@ -158,6 +158,19 @@ function AppRoutes() {
         <UserProfile
           user={currentUser}
           comments={userComments}
+          publisherPosts={
+            currentUser.role === 'publisher'
+              ? news.map((n) => ({
+                  id: n.id,
+                  title: n.title,
+                  excerpt: n.excerpt,
+                  image: n.image,
+                  views: n.views,
+                  comments: n.comments,
+                  publishedAt: n.publishedAt,
+                }))
+              : []
+          }
           onClose={() => setShowProfile(false)}
           onUpdateProfile={handleUpdateProfile}
         />
