@@ -198,24 +198,35 @@ function AppRoutes() {
 
   const trendingViews = filteredNews.reduce((sum, n) => sum + n.views, 0);
 
-  const handleAddComment = async (newsId: string, text: string) => {
+  const handleAddComment = async (
+    newsId: string,
+    text: string,
+    parentCommentId?: string | null,
+  ) => {
     if (!currentUser) {
       setShowAuthModal(true);
       return;
     }
     try {
-      const created = await createPublicationComment(newsId, text);
-      setDetailComments((prev) => [created, ...prev]);
+      await createPublicationComment(
+        newsId,
+        text,
+        parentCommentId ?? undefined,
+      );
+      const list = await listPublicationComments(newsId);
+      setDetailComments(list);
       setNews((prev) =>
         prev.map((n) =>
-          String(n.id) === String(newsId) ? { ...n, comments: n.comments + 1 } : n,
+          String(n.id) === String(newsId) ? { ...n, comments: list.length } : n,
         ),
       );
-      const newsTitle =
-        news.find((n) => String(n.id) === String(newsId))?.title ?? 'Новость';
-      setProfileComments((prev) =>
-        prev !== null ? [{ ...created, newsTitle }, ...prev] : prev,
-      );
+      if (showProfile && currentUser) {
+        try {
+          setProfileComments(await listMyComments());
+        } catch {
+          // список в профиле обновится при следующем открытии
+        }
+      }
     } catch {
       // ошибку можно показать позже через toast
     }

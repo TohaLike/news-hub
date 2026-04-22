@@ -343,7 +343,7 @@ export class EditorialService {
     const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
     const list = await this.commentModel
       .find({ publicationId: pid })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .populate<{ name?: string; email?: string }>({
         path: 'userId',
         model: User.name,
@@ -368,9 +368,11 @@ export class EditorialService {
         viewerOid && likedUserIds.some((id) => id.equals(viewerOid)),
       );
       const created = (row as { createdAt?: Date }).createdAt;
+      const parentRaw = (row as { parentCommentId?: Types.ObjectId | null }).parentCommentId;
       return {
         id: String(row._id),
         newsId: String(row.publicationId),
+        parentCommentId: parentRaw ? String(parentRaw) : null,
         authorUserId,
         author: authorName,
         avatar: this.avatarUrlFromName(authorName),
@@ -386,15 +388,30 @@ export class EditorialService {
     userId: string,
     publicationId: string,
     text: string,
+    parentCommentId?: string,
   ) {
     await this.ensurePublicationExists(publicationId);
     const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
     const uid = this.assertObjectId(userId, 'идентификатор пользователя');
+    let parentOid: Types.ObjectId | null = null;
+    if (parentCommentId !== undefined && parentCommentId !== null && String(parentCommentId).trim() !== '') {
+      parentOid = this.assertObjectId(
+        String(parentCommentId).trim(),
+        'родительский комментарий',
+      );
+      const parent = await this.commentModel
+        .findOne({ _id: parentOid, publicationId: pid })
+        .exec();
+      if (!parent) {
+        throw new BadRequestException('Комментарий для ответа не найден');
+      }
+    }
     const doc = await this.commentModel.create({
       publicationId: pid,
       userId: uid,
       text: text.trim(),
       likedUserIds: [],
+      parentCommentId: parentOid,
     });
     const populated = await this.commentModel
       .findById(doc._id)
@@ -417,9 +434,12 @@ export class EditorialService {
     const authorUserId =
       u && u._id ? String(u._id) : String(populated.userId);
     const created = (populated as { createdAt?: Date }).createdAt;
+    const parentOut = (populated as { parentCommentId?: Types.ObjectId | null })
+      .parentCommentId;
     return {
       id: String(populated._id),
       newsId: String(populated.publicationId),
+      parentCommentId: parentOut ? String(parentOut) : null,
       authorUserId,
       author: authorName,
       avatar: this.avatarUrlFromName(authorName),
@@ -481,9 +501,11 @@ export class EditorialService {
         pub && typeof pub === 'object' && '_id' in pub && pub._id
           ? String(pub._id)
           : String(row.publicationId);
+      const parentRaw = (row as { parentCommentId?: Types.ObjectId | null }).parentCommentId;
       return {
         id: String(row._id),
         newsId: pubId,
+        parentCommentId: parentRaw ? String(parentRaw) : null,
         authorUserId: String(row.userId),
         author: '',
         avatar: '',

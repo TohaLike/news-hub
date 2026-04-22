@@ -7,6 +7,7 @@ import { api } from './client';
 type CommentDto = {
   id: string;
   newsId: string;
+  parentCommentId?: string | null;
   authorUserId: string;
   author: string;
   avatar: string;
@@ -30,11 +31,13 @@ function mapComment(row: CommentDto): Comment {
   return {
     id: row.id,
     newsId: row.newsId,
+    parentCommentId: row.parentCommentId ?? null,
     authorUserId: row.authorUserId,
     author: row.author,
     avatar: personAvatarUrl(row.author, row.authorUserId, row.avatar),
     text: row.text,
     timestamp: formatRu(row.createdAt),
+    createdAt: row.createdAt || new Date(0).toISOString(),
     likes: row.likes,
     likedByMe: row.likedByMe,
   };
@@ -52,10 +55,15 @@ export async function listPublicationComments(
 export async function createPublicationComment(
   publicationId: string,
   text: string,
+  parentCommentId?: string | null,
 ): Promise<Comment> {
+  const body: { text: string; parentCommentId?: string } = { text };
+  if (parentCommentId) {
+    body.parentCommentId = parentCommentId;
+  }
   const { data } = await api.post<CommentDto>(
     `/feed/posts/${encodeURIComponent(publicationId)}/comments`,
-    { text },
+    body,
   );
   return mapComment(data);
 }

@@ -26,6 +26,15 @@ export class PublicationComment {
   @Prop({ required: true, trim: true, maxlength: 2000 })
   text: string;
 
+  /** Ответ на другой комментарий этой же публикации */
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'PublicationComment',
+    default: null,
+    index: true,
+  })
+  parentCommentId: Types.ObjectId | null;
+
   /** Кто поставил лайк (без дублей); число лайков = длина массива */
   @Prop({ type: [{ type: Types.ObjectId, ref: User.name }], default: [] })
   likedUserIds: Types.ObjectId[];

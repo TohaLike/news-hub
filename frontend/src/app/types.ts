@@ -25,11 +25,15 @@ export interface News {
 export interface Comment {
   id: string;
   newsId: string;
+  /** Ответ на комментарий с этим id; null — корневой комментарий */
+  parentCommentId: string | null;
   authorUserId: string;
   author: string;
   avatar: string;
   text: string;
   timestamp: string;
+  /** ISO для сортировки и дерева ответов */
+  createdAt: string;
   likes: number;
   /** Заполняется после GET комментариев с авторизацией */
   likedByMe?: boolean;

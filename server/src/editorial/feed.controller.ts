@@ -64,6 +64,7 @@ export class FeedController {
       req.user.userId,
       publicationId,
       dto.text,
+      dto.parentCommentId,
     );
   }
 
