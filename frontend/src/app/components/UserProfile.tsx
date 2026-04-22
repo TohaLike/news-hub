@@ -453,21 +453,43 @@ export function UserProfile({
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 mt-8 max-w-md mx-auto">
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <div className="flex items-center justify-center gap-2 text-blue-600 mb-2">
+                <div className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-blue-50 p-4 text-center">
+                    <div className="mb-2 flex items-center justify-center gap-2 text-blue-600">
                       <MessageCircle size={20} />
                     </div>
-                    <div className="text-2xl mb-1">{stats.totalComments}</div>
+                    <div className="mb-1 text-2xl tabular-nums">{stats.totalComments}</div>
                     <div className="text-sm text-gray-600">Комментариев</div>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <div className="flex items-center justify-center gap-2 text-green-600 mb-2">
+                  <div className="rounded-lg bg-green-50 p-4 text-center">
+                    <div className="mb-2 flex items-center justify-center gap-2 text-green-600">
                       👍
                     </div>
-                    <div className="text-2xl mb-1">{stats.totalLikes}</div>
+                    <div className="mb-1 text-2xl tabular-nums">{stats.totalLikes}</div>
                     <div className="text-sm text-gray-600">Лайков</div>
                   </div>
+                  {user.role === 'publisher' ? (
+                    <>
+                      <div className="rounded-lg bg-violet-50 p-4 text-center ring-1 ring-violet-100">
+                        <div className="mb-2 flex items-center justify-center gap-2 text-violet-600">
+                          <Layers className="size-5" aria-hidden />
+                        </div>
+                        <div className="mb-1 text-2xl font-semibold tabular-nums text-violet-900">
+                          {(editorialGroups ?? []).length}
+                        </div>
+                        <div className="text-sm text-gray-600">Редакций</div>
+                      </div>
+                      <div className="rounded-lg bg-indigo-50 p-4 text-center ring-1 ring-indigo-100">
+                        <div className="mb-2 flex items-center justify-center gap-2 text-indigo-600">
+                          <Newspaper className="size-5" aria-hidden />
+                        </div>
+                        <div className="mb-1 text-2xl font-semibold tabular-nums text-indigo-900">
+                          {(groupPublications ?? []).length}
+                        </div>
+                        <div className="text-sm text-gray-600">Публикаций</div>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
               </div>
             ) : activeTab === 'editorial' &&
