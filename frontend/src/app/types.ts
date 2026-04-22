@@ -27,10 +27,14 @@ export interface Comment {
   likes: number;
 }
 
+/** Роль аккаунта после регистрации; при входе до ответа бэка — по умолчанию читатель. */
+export type AccountRole = 'reader' | 'publisher';
+
 export interface User {
   name: string;
   email: string;
   avatar: string;
+  role: AccountRole;
 }
 
 export const publishers: Publisher[] = [

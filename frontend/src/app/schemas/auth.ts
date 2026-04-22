@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+export const accountRoleSchema = z.enum(['reader', 'publisher'], {
+  message: 'Выберите тип аккаунта',
+});
+
+export type AccountRoleForm = z.infer<typeof accountRoleSchema>;
+
 export const loginSchema = z.object({
   email: z
     .string()
@@ -14,6 +20,7 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const registerSchema = z.object({
   name: z.string().trim().min(1, 'Введите имя').max(80, 'Слишком длинное имя'),
+  accountType: accountRoleSchema,
   email: z
     .string()
     .trim()

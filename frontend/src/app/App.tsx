@@ -97,7 +97,7 @@ function AppRoutes() {
 
   const handleUpdateProfile = (name: string, email: string, avatar: string) => {
     if (currentUser) {
-      setCurrentUser({ name, email, avatar });
+      setCurrentUser({ ...currentUser, name, email, avatar });
     }
   };
 
