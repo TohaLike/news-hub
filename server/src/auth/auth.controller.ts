@@ -17,7 +17,12 @@ import { RefreshAuthGuard } from './guard/refresh-auth.guard';
 
 const REFRESH_COOKIE = 'refresh_token';
 
-type JwtUser = { userId: string; email: string };
+type JwtUser = {
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+};
 type RefreshUser = { userId: string; refreshToken: string };
 
 @Controller('auth')
@@ -52,7 +57,7 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tokens = await this.authService.register(dto.email, dto.password);
+    const tokens = await this.authService.register(dto);
     this.attachRefreshCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
   }

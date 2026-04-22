@@ -35,8 +35,7 @@ export function LoginForm({ onAuthenticated }: LoginFormProps) {
     try {
       await login(values.email, values.password);
       const profile = await me();
-      const displayName = profile.email.split('@')[0] ?? profile.email;
-      onAuthenticated(userFromMe(profile, displayName));
+      onAuthenticated(userFromMe(profile));
     } catch (e) {
       setRootError(getApiErrorMessage(e));
     }

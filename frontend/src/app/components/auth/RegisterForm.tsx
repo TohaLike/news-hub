@@ -38,11 +38,14 @@ export function RegisterForm({ onAuthenticated }: RegisterFormProps) {
   const onSubmit = form.handleSubmit(async (values) => {
     setRootError(null);
     try {
-      await registerAccount(values.email, values.password);
+      await registerAccount({
+        name: values.name.trim(),
+        email: values.email,
+        password: values.password,
+        accountType: values.accountType,
+      });
       const profile = await me();
-      onAuthenticated(
-        userFromMe(profile, values.name.trim(), values.accountType),
-      );
+      onAuthenticated(userFromMe(profile));
     } catch (e) {
       setRootError(getApiErrorMessage(e));
     }

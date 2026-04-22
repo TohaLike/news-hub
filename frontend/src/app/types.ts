@@ -27,7 +27,7 @@ export interface Comment {
   likes: number;
 }
 
-/** Роль аккаунта после регистрации; при входе до ответа бэка — по умолчанию читатель. */
+/** Роль аккаунта (читатель / издатель), приходит с бэка в /auth/me. */
 export type AccountRole = 'reader' | 'publisher';
 
 export interface User {

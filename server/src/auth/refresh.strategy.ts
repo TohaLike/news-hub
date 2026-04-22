@@ -22,7 +22,10 @@ export class RefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
     });
   }
 
-  validate(req: Request, payload: { sub: string; email: string }) {
+  validate(
+    req: Request,
+    payload: { sub: string; email: string; name?: string; role?: string },
+  ) {
     const cookies = req.cookies as Record<string, string> | undefined;
     const token =
       typeof cookies?.[REFRESH_COOKIE] === 'string'

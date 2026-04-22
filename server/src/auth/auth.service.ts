@@ -6,8 +6,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UserDocument } from 'src/user/schemas/user.schema';
+import { UserDocument, UserRole } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/user.service';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -17,15 +18,17 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(email: string, password: string) {
-    const existing = await this.userService.findByEmail(email);
+  async register(dto: RegisterDto) {
+    const existing = await this.userService.findByEmail(dto.email);
     if (existing) {
       throw new BadRequestException('User already exists');
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.userService.create({
-      email,
+      email: dto.email,
       password: hashedPassword,
+      name: dto.name.trim(),
+      role: dto.accountType as UserRole,
     });
     return this.generateTokens(user);
   }
@@ -42,9 +45,18 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
+  private tokenPayload(user: UserDocument) {
+    const email = user.email;
+    const name =
+      (user.name && user.name.trim()) ||
+      email.split('@')[0] ||
+      email;
+    const role: UserRole = user.role ?? 'reader';
+    return { sub: String(user._id), email, name, role };
+  }
+
   async generateTokens(user: UserDocument) {
-    const sub = String(user._id);
-    const payload = { sub, email: user.email };
+    const payload = this.tokenPayload(user);
     const accessToken = this.jwtService.sign(payload);
     const refreshSecret =
       this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
@@ -86,6 +98,17 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return { id: String(user._id), email: user.email };
+    const email = user.email;
+    const name =
+      (user.name && user.name.trim()) ||
+      email.split('@')[0] ||
+      email;
+    const role: UserRole = user.role ?? 'reader';
+    return {
+      id: String(user._id),
+      email,
+      name,
+      role,
+    };
   }
 }

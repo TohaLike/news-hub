@@ -1,3 +1,4 @@
+import type { AccountRole } from '@/app/types';
 import { api } from './client';
 import { clearAccessToken, setAccessToken } from './accessMemory';
 
@@ -8,15 +9,21 @@ export type AuthAccess = {
 export type MeResponse = {
   id: string;
   email: string;
+  name: string;
+  role: AccountRole;
 };
 
-export async function register(
-  email: string,
-  password: string,
-): Promise<AuthAccess> {
+export async function register(params: {
+  name: string;
+  email: string;
+  password: string;
+  accountType: AccountRole;
+}): Promise<AuthAccess> {
   const { data } = await api.post<AuthAccess>('/auth/register', {
-    email,
-    password,
+    name: params.name,
+    email: params.email,
+    password: params.password,
+    accountType: params.accountType,
   });
   setAccessToken(data.accessToken);
   return data;
