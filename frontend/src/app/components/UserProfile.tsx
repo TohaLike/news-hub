@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import type { AccountRole, EditorialGroup, GroupPublication, User } from '../types';
 import { PublisherEditorialPanel } from './PublisherEditorialPanel';
 import { cn } from './ui/utils';
+import { personAvatarUrl } from '../lib/letterAvatar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface ProfileCommentRow {
@@ -93,7 +94,9 @@ export function UserProfile({
   const [activityPanel, setActivityPanel] = useState<'posts' | 'comments'>('posts');
 
   const handleSave = () => {
-    onUpdateProfile(formData.name, formData.email, formData.avatar);
+    const avatar = personAvatarUrl(formData.name, user.id, formData.avatar);
+    onUpdateProfile(formData.name, formData.email, avatar);
+    setFormData((prev) => ({ ...prev, avatar }));
     setIsEditing(false);
   };
 
@@ -167,9 +170,9 @@ export function UserProfile({
           >
             <div className="flex items-start gap-3">
               <ImageWithFallback
-                src={user.avatar}
+                src={personAvatarUrl(user.name, user.id, user.avatar)}
                 alt={user.name}
-                className="size-10 shrink-0 rounded-full object-cover ring-2 ring-white"
+                className="size-10 shrink-0 rounded-full object-cover ring-1 ring-gray-200/80"
               />
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-center justify-between gap-2">
@@ -302,9 +305,9 @@ export function UserProfile({
                 <div className="flex flex-col items-center mb-8">
                   <div className="relative mb-4">
                     <ImageWithFallback
-                      src={formData.avatar}
+                      src={personAvatarUrl(formData.name, user.id, formData.avatar)}
                       alt={formData.name}
-                      className="w-32 h-32 rounded-full object-cover"
+                      className="h-32 w-32 rounded-full object-cover ring-2 ring-gray-100"
                     />
                     {isEditing && (
                       <button className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors">

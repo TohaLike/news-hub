@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Comment } from '@/app/types';
+import { personAvatarUrl } from '@/app/lib/letterAvatar';
 import { api } from './client';
 
 type CommentDto = {
@@ -31,7 +32,7 @@ function mapComment(row: CommentDto): Comment {
     newsId: row.newsId,
     authorUserId: row.authorUserId,
     author: row.author,
-    avatar: row.avatar,
+    avatar: personAvatarUrl(row.author, row.authorUserId, row.avatar),
     text: row.text,
     timestamp: formatRu(row.createdAt),
     likes: row.likes,

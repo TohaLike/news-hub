@@ -1,6 +1,6 @@
 import type { MeResponse } from '@/api/auth';
 import type { AccountRole, User } from '../types';
-import { buildLetterAvatarDataUrl } from './letterAvatar';
+import { personAvatarUrl } from './letterAvatar';
 
 /** Собрать клиентский User из ответа /auth/me. */
 export function userFromMe(profile: MeResponse): User {
@@ -13,7 +13,7 @@ export function userFromMe(profile: MeResponse): User {
     id: profile.id,
     name,
     email,
-    avatar: buildLetterAvatarDataUrl(name, email),
+    avatar: personAvatarUrl(name, profile.id),
     role,
   };
 }

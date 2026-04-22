@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { News } from '@/app/types';
+import { personAvatarUrl } from '@/app/lib/letterAvatar';
 import { api } from './client';
 
 type FeedPostDto = {
@@ -35,7 +36,10 @@ export async function listFeedPosts(): Promise<News[]> {
     excerpt: row.excerpt,
     content: row.content,
     image: row.image,
-    publisher: row.publisher,
+    publisher: {
+      ...row.publisher,
+      logo: personAvatarUrl(row.publisher.name, row.publisher.id, row.publisher.logo),
+    },
     category: row.category,
     views: row.views,
     comments: row.comments,

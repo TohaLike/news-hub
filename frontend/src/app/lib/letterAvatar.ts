@@ -22,9 +22,15 @@ function hashSeed(s: string): number {
   return Math.abs(h);
 }
 
-export function avatarBackgroundFromEmail(email: string): string {
-  const ix = hashSeed(email.toLowerCase()) % AVATAR_COLORS.length;
+/** Цвет фона по произвольной строке (id, email и т.д.) — одинаково для одного и того же seed. */
+export function avatarBackgroundFromSeed(seed: string): string {
+  const ix = hashSeed(seed.toLowerCase()) % AVATAR_COLORS.length;
   return AVATAR_COLORS[ix];
+}
+
+/** @deprecated используйте avatarBackgroundFromSeed */
+export function avatarBackgroundFromEmail(email: string): string {
+  return avatarBackgroundFromSeed(email);
 }
 
 function firstDisplayLetter(name: string, email: string): string {
@@ -49,13 +55,58 @@ function escapeXml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Data URL SVG: первая буква имени, фон из палитры по email. */
-export function buildLetterAvatarDataUrl(name: string, email: string): string {
-  const letter = escapeXml(firstDisplayLetter(name, email));
-  const fill = avatarBackgroundFromEmail(email);
+/** Data URL SVG: первая буква имени, фон из палитры по строке-seed (email, id и т.д.). */
+export function buildLetterAvatarDataUrl(name: string, colorSeed: string): string {
+  const letter = escapeXml(firstDisplayLetter(name, colorSeed));
+  const fill = avatarBackgroundFromSeed(colorSeed);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Avatar">
   <rect width="128" height="128" fill="${fill}" rx="64"/>
   <text x="64" y="64" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="56" font-weight="600">${letter}</text>
 </svg>`.trim();
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+const CUSTOM_AVATAR_PREFIXES = ['http://', 'https://', 'data:'] as const;
+
+function isCustomAvatarUrl(value: string): boolean {
+  const v = value.trim();
+  return CUSTOM_AVATAR_PREFIXES.some((p) => v.startsWith(p));
+}
+
+/** Сторонние «сгенерированные» аватары (две буквы и др.) — не считаем своими, рисуем наш SVG. */
+function isRemoteGeneratedAvatarUrl(value: string): boolean {
+  try {
+    const host = new URL(value.trim()).hostname.toLowerCase();
+    return (
+      host === 'ui-avatars.com' ||
+      host.endsWith('.ui-avatars.com') ||
+      host === 'www.gravatar.com' ||
+      host === 'gravatar.com' ||
+      host === 'api.dicebear.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Единый аватар: только свой URL/файл или наш круг с одной буквой.
+ * `colorSeed` — стабильный id пользователя (один цвет везде); иначе email и т.п.
+ */
+export function personAvatarUrl(
+  displayName: string,
+  colorSeed: string,
+  storedAvatar?: string | null,
+): string {
+  const custom = storedAvatar?.trim();
+  if (
+    custom &&
+    isCustomAvatarUrl(custom) &&
+    !isRemoteGeneratedAvatarUrl(custom)
+  ) {
+    return custom;
+  }
+  const seed = (colorSeed || displayName || '?').trim() || '?';
+  const name = (displayName || '?').trim() || '?';
+  return buildLetterAvatarDataUrl(name, seed);
 }

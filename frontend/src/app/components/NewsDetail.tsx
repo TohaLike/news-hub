@@ -1,6 +1,7 @@
 import { X, Clock, Eye, MessageCircle, Send, ThumbsUp } from 'lucide-react';
 import { useState } from 'react';
 import type { Comment } from '../types';
+import { personAvatarUrl } from '../lib/letterAvatar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { cn } from './ui/utils';
 
@@ -28,7 +29,9 @@ interface NewsDetailProps {
   onTogglePostLike: (publicationId: string) => void | Promise<void>;
   onRequireLogin?: () => void;
   currentUser?: {
+    id: string;
     name: string;
+    email: string;
     avatar: string;
   } | null;
 }
@@ -101,7 +104,7 @@ export function NewsDetail({
               <ImageWithFallback
                 src={news.publisher.logo}
                 alt={news.publisher.name}
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-gray-200/80"
               />
               <div className="min-w-0 flex-1">
                 <div className={`text-sm text-gray-600 ${safeText}`}>{news.publisher.name}</div>
@@ -181,11 +184,16 @@ export function NewsDetail({
                 <div className="flex gap-3">
                   <ImageWithFallback
                     src={
-                      currentUser?.avatar ||
-                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
+                      currentUser
+                        ? personAvatarUrl(
+                            currentUser.name,
+                            currentUser.id,
+                            currentUser.avatar,
+                          )
+                        : personAvatarUrl('Гость', 'guest')
                     }
                     alt="Ваш аватар"
-                    className="h-10 w-10 shrink-0 rounded-full object-cover"
+                    className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-gray-200/80"
                   />
                   <div className="min-w-0 flex-1">
                     <textarea
@@ -215,7 +223,7 @@ export function NewsDetail({
                     <ImageWithFallback
                       src={comment.avatar}
                       alt={comment.author}
-                      className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-gray-200/80"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex flex-wrap items-center gap-2">

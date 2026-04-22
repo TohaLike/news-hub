@@ -67,7 +67,7 @@ export function NewsCard({
             <ImageWithFallback
               src={publisher.logo}
               alt={publisher.name}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-center"
             />
           </div>
           <span className="min-w-0 truncate text-sm font-medium text-gray-800">{publisher.name}</span>

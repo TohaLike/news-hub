@@ -1,9 +1,11 @@
 import { LogOut, User, Settings, BookMarked } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { personAvatarUrl } from '../lib/letterAvatar';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface UserMenuProps {
   user: {
+    id: string;
     name: string;
     email: string;
     avatar: string;
@@ -41,9 +43,9 @@ export function UserMenu({ user, onLogout, onOpenProfile }: UserMenuProps) {
         className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
       >
         <ImageWithFallback
-          src={user.avatar}
+          src={personAvatarUrl(user.name, user.id, user.avatar)}
           alt={user.name}
-          className="w-8 h-8 rounded-full object-cover"
+          className="h-8 w-8 rounded-full object-cover ring-1 ring-gray-200/80"
         />
         <span className="text-sm hidden sm:block">{user.name}</span>
       </button>
