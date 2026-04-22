@@ -1,15 +1,8 @@
-import { X, Clock, Eye, MessageCircle, Send } from 'lucide-react';
+import { X, Clock, Eye, MessageCircle, Send, ThumbsUp } from 'lucide-react';
 import { useState } from 'react';
+import type { Comment } from '../types';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-
-interface Comment {
-  id: number;
-  author: string;
-  avatar: string;
-  text: string;
-  timestamp: string;
-  likes: number;
-}
+import { cn } from './ui/utils';
 
 interface NewsDetailProps {
   news: {
@@ -23,12 +16,17 @@ interface NewsDetailProps {
     };
     category: string;
     views: number;
+    likes: number;
+    likedByMe?: boolean;
     publishedAt: string;
     groupName?: string;
   };
   comments: Comment[];
   onClose: () => void;
-  onAddComment: (newsId: string, text: string) => void;
+  onAddComment: (newsId: string, text: string) => void | Promise<void>;
+  onToggleCommentLike: (commentId: string) => void | Promise<void>;
+  onTogglePostLike: (publicationId: string) => void | Promise<void>;
+  onRequireLogin?: () => void;
   currentUser?: {
     name: string;
     avatar: string;
@@ -38,14 +36,58 @@ interface NewsDetailProps {
 const safeText =
   'min-w-0 max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word]';
 
-export function NewsDetail({ news, comments, onClose, onAddComment, currentUser }: NewsDetailProps) {
+export function NewsDetail({
+  news,
+  comments,
+  onClose,
+  onAddComment,
+  onToggleCommentLike,
+  onTogglePostLike,
+  onRequireLogin,
+  currentUser,
+}: NewsDetailProps) {
   const [newComment, setNewComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [likeBusyId, setLikeBusyId] = useState<string | null>(null);
+  const [postLikeBusy, setPostLikeBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newComment.trim()) {
-      onAddComment(String(news.id), newComment);
+    if (!newComment.trim() || sending) return;
+    setSending(true);
+    try {
+      await onAddComment(String(news.id), newComment);
       setNewComment('');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handlePostLike = async () => {
+    if (!currentUser) {
+      onRequireLogin?.();
+      return;
+    }
+    if (postLikeBusy) return;
+    setPostLikeBusy(true);
+    try {
+      await onTogglePostLike(String(news.id));
+    } finally {
+      setPostLikeBusy(false);
+    }
+  };
+
+  const handleLike = async (commentId: string) => {
+    if (!currentUser) {
+      onRequireLogin?.();
+      return;
+    }
+    if (likeBusyId) return;
+    setLikeBusyId(commentId);
+    try {
+      await onToggleCommentLike(commentId);
+    } finally {
+      setLikeBusyId(null);
     }
   };
 
@@ -72,6 +114,24 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
                     <Eye size={14} />
                     {news.views}
                   </span>
+                  <button
+                    type="button"
+                    disabled={postLikeBusy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handlePostLike();
+                    }}
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 tabular-nums transition-colors',
+                      news.likedByMe
+                        ? 'bg-blue-100 font-medium text-blue-800 hover:bg-blue-200'
+                        : 'hover:bg-gray-100 hover:text-blue-700',
+                      postLikeBusy && 'opacity-60',
+                    )}
+                  >
+                    <ThumbsUp size={14} aria-hidden />
+                    {news.likes}
+                  </button>
                 </div>
               </div>
             </div>
@@ -138,11 +198,11 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
                     <div className="mt-2 flex justify-end">
                       <button
                         type="submit"
-                        disabled={!newComment.trim()}
+                        disabled={!newComment.trim() || sending}
                         className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Send size={16} />
-                        Отправить
+                        {sending ? 'Отправка…' : 'Отправить'}
                       </button>
                     </div>
                   </div>
@@ -165,7 +225,15 @@ export function NewsDetail({ news, comments, onClose, onAddComment, currentUser 
                       <p className={`mb-2 text-sm text-gray-700 ${safeText}`}>{comment.text}</p>
                       <button
                         type="button"
-                        className="text-xs text-gray-500 transition-colors hover:text-blue-600"
+                        disabled={likeBusyId === comment.id}
+                        onClick={() => void handleLike(comment.id)}
+                        className={cn(
+                          'rounded-md px-2 py-1 text-xs font-medium tabular-nums transition-colors',
+                          comment.likedByMe
+                            ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                            : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50 hover:text-blue-700',
+                          likeBusyId === comment.id && 'opacity-60',
+                        )}
                       >
                         👍 {comment.likes}
                       </button>

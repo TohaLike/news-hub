@@ -15,6 +15,10 @@ import {
   GroupPublication,
   GroupPublicationDocument,
 } from './schemas/group-publication.schema';
+import {
+  PublicationComment,
+  PublicationCommentDocument,
+} from './schemas/publication-comment.schema';
 import { User } from 'src/user/schemas/user.schema';
 
 const DEFAULT_POST_IMAGE =
@@ -27,6 +31,8 @@ export class EditorialService {
     private readonly groupModel: Model<EditorialGroupDocument>,
     @InjectModel(GroupPublication.name)
     private readonly pubModel: Model<GroupPublicationDocument>,
+    @InjectModel(PublicationComment.name)
+    private readonly commentModel: Model<PublicationCommentDocument>,
   ) {}
 
   private assertObjectId(id: string, label: string): Types.ObjectId {
@@ -91,11 +97,16 @@ export class EditorialService {
       .find({ groupId: gid })
       .sort({ createdAt: -1 })
       .exec();
-    return list.map((d) => this.toPublicationResponse(d));
+    const ids = list.map((d) => d._id);
+    const commentCounts = await this.commentCountsForPublications(ids);
+    return list.map((d) => ({
+      ...this.toPublicationResponse(d),
+      comments: commentCounts.get(String(d._id)) ?? 0,
+    }));
   }
 
   /** Публичная лента: все публикации с данными издателя и группы. */
-  async listPublicFeed(limit = 100) {
+  async listPublicFeed(limit = 100, viewerUserId?: string) {
     type PopulatedPublisher = {
       _id: Types.ObjectId;
       name?: string;
@@ -115,6 +126,7 @@ export class EditorialService {
       category: string;
       views: number;
       comments: number;
+      likedUserIds?: Types.ObjectId[];
       createdAt?: Date;
       groupId?: PopulatedGroup | Types.ObjectId | null;
     };
@@ -135,6 +147,14 @@ export class EditorialService {
       .lean()
       .exec()) as LeanPub[];
 
+    const pubIds = rows.map((r) => r._id);
+    const commentCounts = await this.commentCountsForPublications(pubIds);
+
+    const viewerOid =
+      viewerUserId && Types.ObjectId.isValid(viewerUserId)
+        ? new Types.ObjectId(viewerUserId)
+        : null;
+
     const result: Array<{
       id: string;
       title: string;
@@ -144,6 +164,8 @@ export class EditorialService {
       category: string;
       views: number;
       comments: number;
+      likes: number;
+      likedByMe: boolean;
       publishedAt: string;
       groupName: string;
       publisher: { id: string; name: string; logo: string };
@@ -166,6 +188,12 @@ export class EditorialService {
           ? created.toISOString()
           : new Date().toISOString();
       const logoLabel = encodeURIComponent(displayName.slice(0, 40));
+      const commentCount = commentCounts.get(String(doc._id)) ?? 0;
+      const likedIds = doc.likedUserIds ?? [];
+      const likes = likedIds.length;
+      const likedByMe = Boolean(
+        viewerOid && likedIds.some((id) => id.equals(viewerOid)),
+      );
 
       result.push({
         id: String(doc._id),
@@ -175,7 +203,9 @@ export class EditorialService {
         image: doc.image?.trim() ? doc.image.trim() : DEFAULT_POST_IMAGE,
         category: doc.category,
         views: doc.views ?? 0,
-        comments: doc.comments ?? 0,
+        comments: commentCount,
+        likes,
+        likedByMe,
         publishedAt,
         groupName: group.name,
         publisher: {
@@ -224,6 +254,7 @@ export class EditorialService {
   private toPublicationResponse(doc: GroupPublicationDocument) {
     const createdAt = doc.get('createdAt') as Date | undefined;
     const iso = createdAt?.toISOString() ?? new Date().toISOString();
+    const likes = (doc.likedUserIds ?? []).length;
     return {
       id: String(doc._id),
       groupId: String(doc.groupId),
@@ -234,8 +265,235 @@ export class EditorialService {
       image: doc.image,
       views: doc.views,
       comments: doc.comments,
+      likes,
       createdAt: iso,
       publishedAt: iso,
     };
+  }
+
+  async togglePublicationLike(userId: string, publicationId: string) {
+    await this.ensurePublicationExists(publicationId);
+    const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
+    const uid = this.assertObjectId(userId, 'идентификатор пользователя');
+    const doc = await this.pubModel.findById(pid).exec();
+    if (!doc) {
+      throw new NotFoundException('Публикация не найдена');
+    }
+    const liked = (doc.likedUserIds ?? []).some((id) => id.equals(uid));
+    if (liked) {
+      await this.pubModel.updateOne({ _id: pid }, { $pull: { likedUserIds: uid } }).exec();
+    } else {
+      await this.pubModel
+        .updateOne({ _id: pid }, { $addToSet: { likedUserIds: uid } })
+        .exec();
+    }
+    const fresh = await this.pubModel.findById(pid).lean().exec();
+    const n = (fresh?.likedUserIds as Types.ObjectId[] | undefined)?.length ?? 0;
+    return { likes: n, liked: !liked };
+  }
+
+  private async commentCountsForPublications(
+    ids: Types.ObjectId[],
+  ): Promise<Map<string, number>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const rows = await this.commentModel
+      .aggregate<{ _id: Types.ObjectId; n: number }>([
+        { $match: { publicationId: { $in: ids } } },
+        { $group: { _id: '$publicationId', n: { $sum: 1 } } },
+      ])
+      .exec();
+    return new Map(rows.map((r) => [String(r._id), r.n]));
+  }
+
+  private displayNameFromUser(u: {
+    name?: string;
+    email?: string;
+  }): string {
+    const email = u.email ? String(u.email) : '';
+    return (
+      (u.name && String(u.name).trim()) ||
+      (email ? email.split('@')[0] : '') ||
+      'Пользователь'
+    );
+  }
+
+  private avatarUrlFromName(name: string): string {
+    const label = encodeURIComponent(name.slice(0, 40));
+    return `https://ui-avatars.com/api/?name=${label}&size=128&background=6366f1&color=fff`;
+  }
+
+  private async ensurePublicationExists(
+    publicationId: string,
+  ): Promise<GroupPublicationDocument> {
+    const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
+    const doc = await this.pubModel.findById(pid).exec();
+    if (!doc) {
+      throw new NotFoundException('Публикация не найдена');
+    }
+    return doc;
+  }
+
+  async listPublicationComments(
+    publicationId: string,
+    viewerUserId?: string,
+  ) {
+    await this.ensurePublicationExists(publicationId);
+    const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
+    const list = await this.commentModel
+      .find({ publicationId: pid })
+      .sort({ createdAt: -1 })
+      .populate<{ name?: string; email?: string }>({
+        path: 'userId',
+        model: User.name,
+        select: 'name email',
+      })
+      .lean()
+      .exec();
+
+    const viewerOid =
+      viewerUserId && Types.ObjectId.isValid(viewerUserId)
+        ? new Types.ObjectId(viewerUserId)
+        : null;
+
+    return list.map((row) => {
+      const u = row.userId as unknown as { name?: string; email?: string; _id?: Types.ObjectId } | null;
+      const authorName = u ? this.displayNameFromUser(u) : 'Пользователь';
+      const authorUserId =
+        u && u._id ? String(u._id) : String(row.userId);
+      const likedUserIds = (row.likedUserIds ?? []) as Types.ObjectId[];
+      const likes = likedUserIds.length;
+      const likedByMe = Boolean(
+        viewerOid && likedUserIds.some((id) => id.equals(viewerOid)),
+      );
+      const created = (row as { createdAt?: Date }).createdAt;
+      return {
+        id: String(row._id),
+        newsId: String(row.publicationId),
+        authorUserId,
+        author: authorName,
+        avatar: this.avatarUrlFromName(authorName),
+        text: row.text,
+        createdAt: created instanceof Date ? created.toISOString() : new Date().toISOString(),
+        likes,
+        likedByMe,
+      };
+    });
+  }
+
+  async createPublicationComment(
+    userId: string,
+    publicationId: string,
+    text: string,
+  ) {
+    await this.ensurePublicationExists(publicationId);
+    const pid = this.assertObjectId(publicationId, 'идентификатор публикации');
+    const uid = this.assertObjectId(userId, 'идентификатор пользователя');
+    const doc = await this.commentModel.create({
+      publicationId: pid,
+      userId: uid,
+      text: text.trim(),
+      likedUserIds: [],
+    });
+    const populated = await this.commentModel
+      .findById(doc._id)
+      .populate<{ name?: string; email?: string }>({
+        path: 'userId',
+        model: User.name,
+        select: 'name email',
+      })
+      .lean()
+      .exec();
+    if (!populated) {
+      throw new NotFoundException('Комментарий не найден');
+    }
+    const u = populated.userId as unknown as {
+      name?: string;
+      email?: string;
+      _id?: Types.ObjectId;
+    } | null;
+    const authorName = u ? this.displayNameFromUser(u) : 'Пользователь';
+    const authorUserId =
+      u && u._id ? String(u._id) : String(populated.userId);
+    const created = (populated as { createdAt?: Date }).createdAt;
+    return {
+      id: String(populated._id),
+      newsId: String(populated.publicationId),
+      authorUserId,
+      author: authorName,
+      avatar: this.avatarUrlFromName(authorName),
+      text: populated.text,
+      createdAt:
+        created instanceof Date ? created.toISOString() : new Date().toISOString(),
+      likes: 0,
+      likedByMe: false,
+    };
+  }
+
+  async togglePublicationCommentLike(userId: string, commentId: string) {
+    const cid = this.assertObjectId(commentId, 'идентификатор комментария');
+    const uid = this.assertObjectId(userId, 'идентификатор пользователя');
+    const doc = await this.commentModel.findById(cid).exec();
+    if (!doc) {
+      throw new NotFoundException('Комментарий не найден');
+    }
+    const liked = doc.likedUserIds.some((id) => id.equals(uid));
+    if (liked) {
+      await this.commentModel.updateOne({ _id: cid }, { $pull: { likedUserIds: uid } }).exec();
+    } else {
+      await this.commentModel
+        .updateOne({ _id: cid }, { $addToSet: { likedUserIds: uid } })
+        .exec();
+    }
+    const fresh = await this.commentModel.findById(cid).lean().exec();
+    const n = fresh?.likedUserIds?.length ?? 0;
+    return { likes: n, liked: !liked };
+  }
+
+  async listMyComments(userId: string) {
+    const uid = this.assertObjectId(userId, 'идентификатор пользователя');
+    const list = await this.commentModel
+      .find({ userId: uid })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .populate<{ title?: string }>({
+        path: 'publicationId',
+        model: GroupPublication.name,
+        select: 'title',
+      })
+      .lean()
+      .exec();
+
+    return list.map((row) => {
+      const pub = row.publicationId as unknown as {
+        title?: string;
+        _id?: Types.ObjectId;
+      } | null;
+      const newsTitle =
+        pub && typeof pub === 'object' && pub.title
+          ? String(pub.title)
+          : 'Материал удалён или недоступен';
+      const created = (row as { createdAt?: Date }).createdAt;
+      const likedUserIds = (row.likedUserIds ?? []) as Types.ObjectId[];
+      const likedByMe = likedUserIds.some((id) => id.equals(uid));
+      const pubId =
+        pub && typeof pub === 'object' && '_id' in pub && pub._id
+          ? String(pub._id)
+          : String(row.publicationId);
+      return {
+        id: String(row._id),
+        newsId: pubId,
+        authorUserId: String(row.userId),
+        author: '',
+        avatar: '',
+        text: row.text,
+        createdAt:
+          created instanceof Date ? created.toISOString() : new Date().toISOString(),
+        likes: likedUserIds.length,
+        likedByMe,
+        newsTitle,
+      };
+    });
   }
 }

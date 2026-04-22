@@ -18,6 +18,7 @@ type GroupPublicationDto = {
   image: string;
   views: number;
   comments: number;
+  likes: number;
   createdAt: string;
   publishedAt: string;
 };
@@ -42,6 +43,7 @@ function mapPublication(d: GroupPublicationDto): GroupPublication {
     image: d.image,
     views: d.views,
     comments: d.comments,
+    likes: d.likes ?? 0,
     publishedAt: d.publishedAt ?? d.createdAt,
   };
 }

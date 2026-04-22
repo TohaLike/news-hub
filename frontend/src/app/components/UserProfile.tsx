@@ -7,21 +7,23 @@ import {
   MessageCircle,
   Newspaper,
   Save,
+  ThumbsUp,
   X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { AccountRole, EditorialGroup, GroupPublication } from '../types';
+import type { AccountRole, EditorialGroup, GroupPublication, User } from '../types';
 import { PublisherEditorialPanel } from './PublisherEditorialPanel';
 import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
-interface Comment {
-  id: number;
+interface ProfileCommentRow {
+  id: string;
   newsId: string;
   newsTitle: string;
   text: string;
   timestamp: string;
   likes: number;
+  likedByMe?: boolean;
 }
 
 /** Демо-публикации издателя (данные с ленты, только UI). */
@@ -31,18 +33,16 @@ export interface PublisherActivityPost {
   excerpt: string;
   image: string;
   views: number;
+  likes: number;
   comments: number;
   publishedAt: string;
 }
 
 interface UserProfileProps {
-  user: {
-    name: string;
-    email: string;
-    avatar: string;
-    role: AccountRole;
-  };
-  comments: Comment[];
+  user: User;
+  comments: ProfileCommentRow[];
+  commentsLoading?: boolean;
+  onToggleCommentLike?: (commentId: string) => void | Promise<void>;
   /** Для роли издателя — карточки «мои публикации» (передаётся из App из `news`). */
   publisherPosts?: PublisherActivityPost[];
   /** Только для издателя: группы и публикации с API. */
@@ -69,6 +69,8 @@ interface UserProfileProps {
 export function UserProfile({
   user,
   comments,
+  commentsLoading = false,
+  onToggleCommentLike,
   publisherPosts = [],
   editorialGroups,
   groupPublications,
@@ -80,6 +82,7 @@ export function UserProfile({
   onClose,
   onUpdateProfile,
 }: UserProfileProps) {
+  const [likeBusyId, setLikeBusyId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user.name,
@@ -137,8 +140,20 @@ export function UserProfile({
 
   const postCount = publisherPosts.length;
 
+  const handleProfileLike = async (commentId: string) => {
+    if (!onToggleCommentLike || likeBusyId) return;
+    setLikeBusyId(commentId);
+    try {
+      await onToggleCommentLike(commentId);
+    } finally {
+      setLikeBusyId(null);
+    }
+  };
+
   const renderCommentsList = () =>
-    comments.length > 0 ? (
+    commentsLoading ? (
+      <div className="py-10 text-center text-sm text-gray-500">Загрузка комментариев…</div>
+    ) : comments.length > 0 ? (
       <div className="space-y-4">
         {comments.map((comment) => (
           <div
@@ -172,10 +187,27 @@ export function UserProfile({
                 <p className="min-w-0 max-w-full break-words text-gray-900 [overflow-wrap:anywhere] [word-break:break-word]">
                   {comment.text}
                 </p>
-                <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>👍</span> {comment.likes}
-                  </span>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {onToggleCommentLike ? (
+                    <button
+                      type="button"
+                      disabled={likeBusyId === comment.id}
+                      onClick={() => void handleProfileLike(comment.id)}
+                      className={cn(
+                        'rounded-md px-2 py-1 text-xs font-medium tabular-nums transition-colors',
+                        comment.likedByMe
+                          ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                          : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50 hover:text-blue-700',
+                        likeBusyId === comment.id && 'opacity-60',
+                      )}
+                    >
+                      👍 {comment.likes}
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                      <span aria-hidden>👍</span> {comment.likes}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -542,6 +574,10 @@ export function UserProfile({
                                 <span className="inline-flex items-center gap-1.5 text-violet-700/90">
                                   <Eye className="size-3.5" aria-hidden />
                                   {post.views.toLocaleString('ru-RU')} просмотров
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 text-amber-700/90">
+                                  <ThumbsUp className="size-3.5" aria-hidden />
+                                  {post.likes.toLocaleString('ru-RU')} лайков
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 text-blue-700/90">
                                   <MessageCircle className="size-3.5" aria-hidden />

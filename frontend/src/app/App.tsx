@@ -5,14 +5,20 @@ import { Redirect, Router, useLocation, useRoute } from 'wouter';
 import {
   clearAccessToken,
   createGroupPublication,
+  createPublicationComment,
   createPublisherGroup,
   listFeedPosts,
   listGroupPublications,
+  listMyComments,
+  listPublicationComments,
   listPublisherGroups,
   logout,
   me,
   refreshSession,
+  togglePublicationCommentLike,
+  togglePublicationLike,
 } from '@/api';
+import type { ProfileComment } from '@/api/comments';
 import { getApiErrorMessage } from './components/auth/getApiErrorMessage';
 import { AuthModal } from './components/AuthModal';
 import { NewsDetail } from './components/NewsDetail';
@@ -40,7 +46,9 @@ function AppRoutes() {
   const [authReady, setAuthReady] = useState(false);
   const [selectedRubric, setSelectedRubric] = useState<NewsRubric | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [detailComments, setDetailComments] = useState<Comment[]>([]);
+  const [profileComments, setProfileComments] = useState<ProfileComment[] | null>(null);
+  const [profileCommentsLoading, setProfileCommentsLoading] = useState(false);
   const [news, setNews] = useState<News[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -132,6 +140,52 @@ function AppRoutes() {
     newsMatch && detailId && !feedLoading && !selectedNews,
   );
 
+  useEffect(() => {
+    if (!selectedNews) {
+      setDetailComments([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await listPublicationComments(selectedNews.id);
+        if (!cancelled) setDetailComments(list);
+      } catch {
+        if (!cancelled) setDetailComments([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNews?.id]);
+
+  useEffect(() => {
+    if (!showProfile) {
+      setProfileComments(null);
+      setProfileCommentsLoading(false);
+      return;
+    }
+    if (!currentUser) {
+      return;
+    }
+    let cancelled = false;
+    setProfileComments(null);
+    setProfileCommentsLoading(true);
+    (async () => {
+      try {
+        const list = await listMyComments();
+        if (!cancelled) setProfileComments(list);
+      } catch {
+        if (!cancelled) setProfileComments([]);
+      } finally {
+        if (!cancelled) setProfileCommentsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showProfile, currentUser?.id]);
+
   const filteredNews = news.filter((item) => {
     const matchesRubric =
       selectedRubric === null || item.category === selectedRubric;
@@ -144,22 +198,64 @@ function AppRoutes() {
 
   const trendingViews = filteredNews.reduce((sum, n) => sum + n.views, 0);
 
-  const handleAddComment = (newsId: string, text: string) => {
+  const handleAddComment = async (newsId: string, text: string) => {
     if (!currentUser) {
       setShowAuthModal(true);
       return;
     }
+    try {
+      const created = await createPublicationComment(newsId, text);
+      setDetailComments((prev) => [created, ...prev]);
+      setNews((prev) =>
+        prev.map((n) =>
+          String(n.id) === String(newsId) ? { ...n, comments: n.comments + 1 } : n,
+        ),
+      );
+      const newsTitle =
+        news.find((n) => String(n.id) === String(newsId))?.title ?? 'Новость';
+      setProfileComments((prev) =>
+        prev !== null ? [{ ...created, newsTitle }, ...prev] : prev,
+      );
+    } catch {
+      // ошибку можно показать позже через toast
+    }
+  };
 
-    const newComment: Comment = {
-      id: comments.length + 1,
-      newsId,
-      author: currentUser.name,
-      avatar: currentUser.avatar,
-      text,
-      timestamp: 'Только что',
-      likes: 0,
-    };
-    setComments([...comments, newComment]);
+  const handleToggleCommentLike = async (commentId: string) => {
+    if (!currentUser) return;
+    try {
+      const { likes, liked } = await togglePublicationCommentLike(commentId);
+      setDetailComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, likes, likedByMe: liked } : c,
+        ),
+      );
+      setProfileComments((prev) =>
+        prev
+          ? prev.map((c) =>
+              c.id === commentId ? { ...c, likes, likedByMe: liked } : c,
+            )
+          : prev,
+      );
+    } catch {
+      // игнорируем рассинхрон
+    }
+  };
+
+  const handleTogglePostLike = async (publicationId: string) => {
+    if (!currentUser) return;
+    try {
+      const { likes, liked } = await togglePublicationLike(publicationId);
+      setNews((prev) =>
+        prev.map((n) =>
+          String(n.id) === String(publicationId)
+            ? { ...n, likes, likedByMe: liked }
+            : n,
+        ),
+      );
+    } catch {
+      // игнорируем
+    }
   };
 
   const handleAuthenticated = (user: User) => {
@@ -178,6 +274,8 @@ function AppRoutes() {
     setEditorialGroups([]);
     setGroupPublications([]);
     setEditorialError(null);
+    setProfileComments(null);
+    setDetailComments([]);
   };
 
   const handleUpdateProfile = (name: string, email: string, avatar: string) => {
@@ -218,25 +316,14 @@ function AppRoutes() {
       excerpt: p.excerpt,
       image: p.image,
       views: p.views,
+      likes: p.likes,
       comments: p.comments,
       publishedAt: formatPublishedRu(p.publishedAt),
     }));
   }, [currentUser?.role, groupPublications]);
 
-  const userComments = currentUser
-    ? comments
-        .filter((c) => c.author === currentUser.name)
-        .map((c) => ({
-          ...c,
-          newsTitle:
-            news.find((n) => String(n.id) === String(c.newsId))?.title ||
-            'Новость не найдена',
-        }))
-    : [];
-
-  const newsComments = selectedNews
-    ? comments.filter((c) => String(c.newsId) === String(selectedNews.id))
-    : [];
+  const userComments: ProfileComment[] =
+    currentUser && profileComments !== null ? profileComments : [];
 
   if (invalidNewsRoute) {
     return <Redirect to="/" />;
@@ -265,9 +352,12 @@ function AppRoutes() {
       {selectedNews && (
         <NewsDetail
           news={selectedNews}
-          comments={newsComments}
+          comments={detailComments}
           onClose={() => setLocation('/')}
           onAddComment={handleAddComment}
+          onToggleCommentLike={handleToggleCommentLike}
+          onTogglePostLike={handleTogglePostLike}
+          onRequireLogin={() => setShowAuthModal(true)}
           currentUser={currentUser}
         />
       )}
@@ -283,6 +373,8 @@ function AppRoutes() {
         <UserProfile
           user={currentUser}
           comments={userComments}
+          commentsLoading={profileCommentsLoading}
+          onToggleCommentLike={handleToggleCommentLike}
           publisherPosts={publisherActivityPosts}
           editorialGroups={
             currentUser.role === 'publisher' ? editorialGroups : undefined

@@ -14,25 +14,32 @@ export interface News {
   category: string;
   views: number;
   comments: number;
+  /** Лайки на материал (не на комментарии) */
+  likes: number;
+  likedByMe?: boolean;
   publishedAt: string;
   /** Тематическая группа издателя (с бэка). */
   groupName?: string;
 }
 
 export interface Comment {
-  id: number;
+  id: string;
   newsId: string;
+  authorUserId: string;
   author: string;
   avatar: string;
   text: string;
   timestamp: string;
   likes: number;
+  /** Заполняется после GET комментариев с авторизацией */
+  likedByMe?: boolean;
 }
 
 /** Роль аккаунта (читатель / издатель), приходит с бэка в /auth/me. */
 export type AccountRole = 'reader' | 'publisher';
 
 export interface User {
+  id: string;
   name: string;
   email: string;
   avatar: string;
@@ -59,4 +66,5 @@ export interface GroupPublication {
   publishedAt: string;
   views: number;
   comments: number;
+  likes: number;
 }

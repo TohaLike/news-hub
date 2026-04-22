@@ -357,7 +357,8 @@ export function PublisherEditorialPanel({
                             {post.excerpt}
                           </p>
                           <p className="mt-2 text-xs text-gray-500">
-                            {post.views} просмотров · {post.comments} комментариев
+                            {post.views} просмотров · {post.likes} лайков · {post.comments}{' '}
+                            комментариев
                           </p>
                         </div>
                       </div>

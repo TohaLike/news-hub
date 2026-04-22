@@ -10,6 +10,7 @@ export function userFromMe(profile: MeResponse): User {
   const role: AccountRole =
     profile.role === 'publisher' ? 'publisher' : 'reader';
   return {
+    id: profile.id,
     name,
     email,
     avatar: buildLetterAvatarDataUrl(name, email),

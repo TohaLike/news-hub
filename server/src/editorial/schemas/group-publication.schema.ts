@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { User } from 'src/user/schemas/user.schema';
 import { EditorialGroup } from './editorial-group.schema';
 
 export type GroupPublicationDocument = HydratedDocument<GroupPublication>;
@@ -35,6 +36,10 @@ export class GroupPublication {
 
   @Prop({ default: 0, min: 0 })
   comments: number;
+
+  /** Лайки на сам материал (пользователи без дублей) */
+  @Prop({ type: [{ type: Types.ObjectId, ref: User.name }], default: [] })
+  likedUserIds: Types.ObjectId[];
 }
 
 export const GroupPublicationSchema = SchemaFactory.createForClass(GroupPublication);

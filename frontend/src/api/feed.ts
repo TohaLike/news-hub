@@ -12,6 +12,8 @@ type FeedPostDto = {
   category: string;
   views: number;
   comments: number;
+  likes: number;
+  likedByMe?: boolean;
   publishedAt: string;
   groupName: string;
   publisher: { id: string; name: string; logo: string };
@@ -37,7 +39,18 @@ export async function listFeedPosts(): Promise<News[]> {
     category: row.category,
     views: row.views,
     comments: row.comments,
+    likes: row.likes ?? 0,
+    likedByMe: row.likedByMe,
     publishedAt: formatRuRelative(row.publishedAt),
     groupName: row.groupName,
   }));
+}
+
+export async function togglePublicationLike(
+  publicationId: string,
+): Promise<{ likes: number; liked: boolean }> {
+  const { data } = await api.post<{ likes: number; liked: boolean }>(
+    `/feed/posts/${encodeURIComponent(publicationId)}/like`,
+  );
+  return data;
 }
