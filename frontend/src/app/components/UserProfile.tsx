@@ -1,5 +1,7 @@
-import { X, Edit2, Save, Camera, MessageCircle, Eye } from 'lucide-react';
+import { BookOpen, Camera, Edit2, MessageCircle, Newspaper, Save, X } from 'lucide-react';
 import { useState } from 'react';
+import type { AccountRole } from '../types';
+import { cn } from './ui/utils';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface Comment {
@@ -16,6 +18,7 @@ interface UserProfileProps {
     name: string;
     email: string;
     avatar: string;
+    role: AccountRole;
   };
   comments: Comment[];
   onClose: () => void;
@@ -49,6 +52,25 @@ export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserPr
     totalComments: comments.length,
     totalLikes: comments.reduce((sum, c) => sum + c.likes, 0),
   };
+
+  const accountMeta: Record<
+    AccountRole,
+    { title: string; description: string; Icon: typeof BookOpen }
+  > = {
+    reader: {
+      title: 'Читатель',
+      description: 'Читайте ленту, комментируйте и ведите профиль',
+      Icon: BookOpen,
+    },
+    publisher: {
+      title: 'Издатель',
+      description: 'Публикуйте материалы и управляйте своим каналом',
+      Icon: Newspaper,
+    },
+  };
+
+  const { title: roleTitle, description: roleDescription, Icon: RoleIcon } =
+    accountMeta[user.role];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
@@ -133,6 +155,61 @@ export function UserProfile({ user, comments, onClose, onUpdateProfile }: UserPr
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Тип аккаунта */}
+                <div className="max-w-md mx-auto mb-8">
+                  <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Тип аккаунта
+                  </p>
+                  <div
+                    className={cn(
+                      'relative overflow-hidden rounded-2xl border-2 p-5 shadow-sm transition-shadow',
+                      user.role === 'reader'
+                        ? 'border-blue-200 bg-gradient-to-br from-blue-50 via-white to-sky-50/90 ring-1 ring-blue-600/10'
+                        : 'border-violet-200 bg-gradient-to-br from-violet-50 via-white to-purple-50/90 ring-1 ring-violet-600/10',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'pointer-events-none absolute -right-6 -top-6 size-28 rounded-full opacity-40 blur-2xl',
+                        user.role === 'reader' ? 'bg-blue-400' : 'bg-violet-400',
+                      )}
+                      aria-hidden
+                    />
+                    <div className="relative flex gap-4">
+                      <span
+                        className={cn(
+                          'flex size-14 shrink-0 items-center justify-center rounded-xl shadow-inner',
+                          user.role === 'reader'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-violet-600 text-white',
+                        )}
+                      >
+                        <RoleIcon className="size-7" strokeWidth={2} aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-lg font-semibold text-gray-900">
+                            {roleTitle}
+                          </span>
+                          <span
+                            className={cn(
+                              'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                              user.role === 'reader'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-violet-100 text-violet-800',
+                            )}
+                          >
+                            {user.role === 'reader' ? 'Лента и комментарии' : 'Публикации'}
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
+                          {roleDescription}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* User Info */}
